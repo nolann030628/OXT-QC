@@ -33,20 +33,33 @@ try:
 except ImportError:  # pragma: no cover
     AzureOpenAI = None
 
+try:
+    from tqdm.auto import tqdm
+except ImportError:  # pragma: no cover
+    tqdm = None
+
 
 TACTILE_TYPE_ALIAS = {
     "state": "state",
     "array": "array",
     "binary": "array",
-    "matrix": "array",
+    "matrix": "matrix",
     "image": "image",
 }
+
+EQUIVALENT_TACTILE_TYPES = {"array", "matrix"}
 
 
 @dataclass
 class DatasetInput:
     path: Path
     name: str
+
+
+def _progress(iterable: Any, **kwargs: Any) -> Any:
+    if tqdm is None:
+        return iterable
+    return tqdm(iterable, **kwargs)
 
 
 def discover_datasets(path: Path, pattern: str = "*.zarr") -> list[DatasetInput]:
@@ -80,7 +93,6 @@ def _normalize_2d(x: np.ndarray) -> np.ndarray:
 
 
 def tactile_frame_to_map(frame: np.ndarray) -> np.ndarray:
-    # state: [C] or [C,1], array/image: [C,H,W] etc.
     if frame.ndim == 0:
         return frame.reshape(1, 1)
     if frame.ndim == 1:
@@ -142,7 +154,6 @@ def _state_panel(
             draw.rectangle([8, yy, 8 + bw, yy + bar_h - 2], fill=(120, 220, 120))
             draw.text((10, yy), f"c{i}", fill=(220, 220, 220))
 
-    # mini sparkline of tactile energy
     win = 80
     s = max(0, t - win)
     e = min(len(energy_series), t + win + 1)
@@ -180,7 +191,6 @@ def _array_image_panel(
     elif x.ndim == 3:
         maps = [x[i] for i in range(x.shape[0])]
     else:
-        # fallback: keep channel axis, preserve remaining spatial product
         c = x.shape[0] if x.ndim >= 1 else 1
         maps = [x[i].reshape(1, -1) for i in range(c)]
 
@@ -196,8 +206,7 @@ def _array_image_panel(
         y1, x1 = min(h, y0 + cell_h), min(w, x0 + cell_w)
         if y1 <= y0 or x1 <= x0:
             continue
-        mn = m
-        norm = np.zeros_like(mn, dtype=np.float32) if vmax <= vmin else np.clip((mn - vmin) / (vmax - vmin), 0.0, 1.0)
+        norm = np.zeros_like(m, dtype=np.float32) if vmax <= vmin else np.clip((m - vmin) / (vmax - vmin), 0.0, 1.0)
         gray = (norm * 255).astype(np.uint8)
         resized = _resize_nn(gray, y1 - y0, x1 - x0)
         panel[y0:y1, x0:x1] = resized
@@ -262,6 +271,22 @@ def build_sampling_indices(
     }
 
 
+def build_energy_candidate_indices(T: int, max_frames_for_energy: int) -> np.ndarray:
+    if T <= 0:
+        return np.array([], dtype=int)
+    if max_frames_for_energy <= 0 or T <= max_frames_for_energy:
+        return np.arange(T, dtype=int)
+    idx = np.linspace(0, T - 1, num=max_frames_for_energy, dtype=int)
+    return np.unique(idx)
+
+
+def chunk_indices(indices: list[int], chunk_size: int, max_chunks: int) -> list[list[int]]:
+    if chunk_size <= 0 or max_chunks <= 0:
+        return []
+    chunks = [indices[i : i + chunk_size] for i in range(0, len(indices), chunk_size)]
+    return chunks[:max_chunks]
+
+
 def make_montage(
     rgb_arr: Any,
     tactile_arr: Any,
@@ -317,22 +342,152 @@ def encode_image_base64(path: Path) -> str:
     return base64.b64encode(data).decode("utf-8")
 
 
+def build_logged_prompt(prompt: str, image_included: bool) -> str:
+    if not image_included:
+        return prompt
+    return prompt.rstrip() + "\n[IMG]"
+
+
+def _is_array_matrix_mismatch_issue(issue: str) -> bool:
+    s = str(issue).strip().lower()
+    if "array" not in s or "matrix" not in s:
+        return False
+    keywords = (
+        "mismatch",
+        "expected",
+        "known type",
+        "normalized label",
+        "render mode",
+        "render label",
+        "shown as",
+        "type=",
+        "label",
+    )
+    return any(k in s for k in keywords)
+
+
+def sanitize_vlm_review(vlm_json: dict[str, Any]) -> dict[str, Any]:
+    out = dict(vlm_json)
+    raw_issues = out.get("issues") or []
+    if not isinstance(raw_issues, list):
+        raw_issues = [str(raw_issues)]
+    filtered_issues = [
+        str(issue)
+        for issue in raw_issues
+        if not _is_array_matrix_mismatch_issue(str(issue))
+    ]
+    removed_count = len(raw_issues) - len(filtered_issues)
+    out["issues"] = filtered_issues
+
+    if removed_count > 0 and not filtered_issues:
+        numeric_scores = [
+            float(out[k])
+            for k in (
+                "sync_score",
+                "contact_consistency_score",
+                "signal_health_score",
+                "instruction_consistency_score",
+            )
+            if isinstance(out.get(k), (int, float))
+        ]
+        if numeric_scores:
+            min_score = min(numeric_scores)
+            out["final_status"] = "pass" if min_score >= 0.8 else "warning"
+            out["needs_human_review"] = bool(min_score < 0.8)
+    return out
+
+
+def classify_score(score: Any) -> str | None:
+    if not isinstance(score, (int, float)):
+        return None
+    if float(score) >= 0.8:
+        return "pass"
+    if float(score) >= 0.5:
+        return "warning"
+    return "fail"
+
+
+def build_review_result_doc(full_doc: dict[str, Any]) -> dict[str, Any]:
+    result_reports: list[dict[str, Any]] = []
+    for report in full_doc.get("reports", []):
+        score_aspects = {
+            "sync": "sync_score",
+            "contact_consistency": "contact_consistency_score",
+            "signal_health": "signal_health_score",
+            "instruction_consistency": "instruction_consistency_score",
+        }
+        aspect_summary: dict[str, Any] = {}
+        for aspect in score_aspects:
+            aspect_summary[aspect] = {
+                "average_score": None,
+                "pass_pages": [],
+                "warning_pages": [],
+                "fail_pages": [],
+                "error_pages": [],
+            }
+
+        for page in report.get("vlm_review_pages", []):
+            page_index = int(page.get("page_index"))
+            review = page.get("vlm_review") or {}
+            issues = review.get("issues") or []
+            final_status = str(review.get("final_status", "warning"))
+
+            is_error = any(
+                str(issue).startswith("api_error:")
+                or str(issue) in {"missing_api_key", "dry_run_no_api_call"}
+                for issue in issues
+            )
+
+            for aspect, score_key in score_aspects.items():
+                score = review.get(score_key)
+                if is_error or not isinstance(score, (int, float)):
+                    aspect_summary[aspect]["error_pages"].append({
+                        "page_index": page_index,
+                        "reason": issues,
+                    })
+                    continue
+                bucket = classify_score(score)
+                item = {
+                    "page_index": page_index,
+                    "score": float(score),
+                }
+                if bucket != "pass" and issues:
+                    item["reason"] = issues
+                aspect_summary[aspect][f"{bucket}_pages"].append(item)
+
+        for aspect, score_key in score_aspects.items():
+            vals = []
+            for page in report.get("vlm_review_pages", []):
+                review = page.get("vlm_review") or {}
+                score = review.get(score_key)
+                if isinstance(score, (int, float)):
+                    vals.append(float(score))
+            aspect_summary[aspect]["average_score"] = (sum(vals) / len(vals)) if vals else None
+
+        result_reports.append({
+            "dataset": report.get("dataset"),
+            "path": report.get("path"),
+            **aspect_summary,
+        })
+    return {"reports": result_reports}
+
+
 def _response_to_dict(resp: Any) -> dict[str, Any]:
     if isinstance(resp, dict):
         return resp
     if hasattr(resp, "model_dump"):
         try:
             return resp.model_dump()
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
     if hasattr(resp, "to_dict"):
         try:
             return resp.to_dict()
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
     try:
         return json.loads(json.dumps(resp, default=lambda o: getattr(o, "__dict__", str(o))))
-    except Exception:  # noqa: BLE001
+    except Exception:
         return {"raw": str(resp)}
 
 
@@ -376,7 +531,7 @@ def call_openai_compatible_chat(
     except error.HTTPError as exc:
         err_text = exc.read().decode("utf-8", errors="ignore")
         return {"_error": f"HTTP {exc.code}", "_body": err_text}
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return {"_error": str(exc)}
 
 
@@ -421,7 +576,7 @@ def call_ark_responses(
     except error.HTTPError as exc:
         err_text = exc.read().decode("utf-8", errors="ignore")
         return {"_error": f"HTTP {exc.code}", "_body": err_text}
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return {"_error": str(exc)}
 
 
@@ -459,7 +614,7 @@ def call_vlm(
                 input=input_payload,
             )
             return _response_to_dict(resp)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return {"_error": str(exc)}
     if provider == "ark":
         return call_ark_responses(
@@ -496,7 +651,7 @@ def extract_model_text(resp: dict[str, Any]) -> str:
             return "\n".join(chunks)
     try:
         return resp["choices"][0]["message"]["content"]
-    except Exception:  # noqa: BLE001
+    except Exception:
         return ""
 
 
@@ -539,6 +694,7 @@ def summarize_tactile_health(tactile_energy: np.ndarray) -> dict[str, Any]:
 def analyze_one_dataset(
     ds: DatasetInput,
     out_dir: Path,
+    max_frames_for_energy: int,
     max_uniform_samples: int,
     max_event_samples: int,
     max_frames_for_vlm: int,
@@ -572,14 +728,31 @@ def analyze_one_dataset(
     tact = data[tact_key]
     T = int(min(rgb.shape[0], tact.shape[0]))
 
-    tactile_energy = np.asarray([float(np.nanmean(np.abs(np.asarray(tact[i], dtype=np.float32)))) for i in range(T)])
-    sampling = build_sampling_indices(
-        T,
+    energy_candidate_indices = build_energy_candidate_indices(T, max_frames_for_energy)
+    tactile_energy = np.asarray([
+        float(np.nanmean(np.abs(np.asarray(tact[i], dtype=np.float32))))
+        for i in _progress(
+            energy_candidate_indices,
+            desc=f"{ds.name} tactile energy",
+            leave=False,
+            dynamic_ncols=True,
+        )
+    ])
+    sampling_small = build_sampling_indices(
+        len(energy_candidate_indices),
         tactile_energy,
         max_uniform=max_uniform_samples,
         max_events=max_event_samples,
         max_total=max_frames_for_vlm,
     )
+    sampling = {
+        "indices": [int(energy_candidate_indices[i]) for i in sampling_small["indices"]],
+        "uniform": [int(energy_candidate_indices[i]) for i in sampling_small["uniform"]],
+        "events": [int(energy_candidate_indices[i]) for i in sampling_small["events"]],
+        "max_frames_for_energy": max_frames_for_energy,
+        "num_energy_frames_used": int(len(energy_candidate_indices)),
+        "energy_downsampled": bool(len(energy_candidate_indices) < T),
+    }
     indices = sampling["indices"]
 
     tactile_type_values: list[str] = []
@@ -589,21 +762,8 @@ def analyze_one_dataset(
         tactile_type_values = sorted(set(vals.tolist()))
     tactile_type_norm = sorted({TACTILE_TYPE_ALIAS.get(v, v) for v in tactile_type_values})
     tactile_kind = tactile_type_norm[0] if tactile_type_norm else "array"
+    render_kind = "array" if tactile_kind in {"array", "matrix", "image"} else tactile_kind
     tactile_vmin, tactile_vmax = _estimate_value_range(tact, indices)
-
-    dataset_out = out_dir / ds.name.replace(".zarr", "")
-    dataset_out.mkdir(parents=True, exist_ok=True)
-    montage_png = dataset_out / "vlm_montage.png"
-    make_montage(
-        rgb_arr=rgb,
-        tactile_arr=tact,
-        indices=indices,
-        tactile_kind=tactile_kind,
-        energy_series=tactile_energy,
-        tactile_vmin=tactile_vmin,
-        tactile_vmax=tactile_vmax,
-        out_png=montage_png,
-    )
 
     instructions: list[str] = []
     for ik in instruction_keys:
@@ -611,7 +771,7 @@ def analyze_one_dataset(
             vals = np.asarray(data[ik][:]).astype(str)
             uniq = sorted(set(x.strip() for x in vals.tolist()))
             instructions.extend(uniq[:3])
-        except Exception:  # noqa: BLE001
+        except Exception:
             continue
     instructions = sorted(set(instructions))[:5]
 
@@ -623,52 +783,127 @@ def analyze_one_dataset(
         "instruction_consistency_score(0-1), issues(array of short strings), "
         "final_status(one of: pass, warning, fail), needs_human_review(boolean).\n"
         f"Known tactile type labels: {tactile_type_values}.\n"
-        f"Normalized tactile type labels: {tactile_type_norm}.\n"
+        "Treat tactile labels 'array' and 'matrix' as equivalent 2D tactile map formats; "
+        "do not report array/matrix wording differences as an issue.\n"
         f"Instruction samples: {instructions}.\n"
         "Tactile panel rendering rule:\n"
         "- if type=state: top half are per-channel bars, bottom half is local energy curve.\n"
-        "- if type=array/image: channel maps are tiled while preserving channel 2D structure.\n"
+        "- if type=array/matrix/image: channel maps are tiled while preserving channel 2D structure.\n"
         f"- fixed tactile normalization range for this dataset: [{tactile_vmin:.6g}, {tactile_vmax:.6g}].\n"
         "Focus on: RGB-tactile rough synchronization, broken contact patterns, abnormal "
         "signal stability, and instruction/action consistency.\n"
     )
 
-    vlm_resp: dict[str, Any] = {}
-    vlm_json: dict[str, Any] = {}
-    if dry_run:
-        vlm_json = {
-            "sync_score": None,
-            "contact_consistency_score": None,
-            "signal_health_score": None,
-            "instruction_consistency_score": None,
-            "issues": ["dry_run_no_api_call"],
-            "final_status": "warning",
-            "needs_human_review": True,
-        }
-    elif api_key:
-        vlm_resp = call_vlm(
-            provider=provider,
-            api_base=api_base,
-            api_key=api_key,
-            model=model,
-            prompt=prompt,
-            image_path=montage_png,
-            azure_api_version=azure_api_version,
+    dataset_out = out_dir / ds.name.replace(".zarr", "")
+    dataset_out.mkdir(parents=True, exist_ok=True)
+    montage_pages = chunk_indices(indices, chunk_size=16, max_chunks=5)
+    montage_paths: list[str] = []
+    page_reviews: list[dict[str, Any]] = []
+
+    for page_idx, page_indices in enumerate(
+        _progress(
+            montage_pages,
+            desc=f"{ds.name} VLM pages",
+            leave=False,
+            dynamic_ncols=True,
         )
-        text = extract_model_text(vlm_resp)
-        vlm_json = robust_json_from_text(text)
-        if "_error" in vlm_resp and not vlm_json:
+    ):
+        montage_png = dataset_out / f"vlm_montage_{page_idx + 1:02d}.png"
+        make_montage(
+            rgb_arr=rgb,
+            tactile_arr=tact,
+            indices=page_indices,
+            tactile_kind=render_kind,
+            energy_series=tactile_energy,
+            tactile_vmin=tactile_vmin,
+            tactile_vmax=tactile_vmax,
+            out_png=montage_png,
+            cols=4,
+        )
+        montage_paths.append(str(montage_png))
+
+        vlm_resp: dict[str, Any] = {}
+        vlm_json: dict[str, Any] = {}
+        if dry_run:
             vlm_json = {
-                "issues": [f"api_error: {vlm_resp.get('_error')}"],
+                "sync_score": None,
+                "contact_consistency_score": None,
+                "signal_health_score": None,
+                "instruction_consistency_score": None,
+                "issues": ["dry_run_no_api_call"],
                 "final_status": "warning",
                 "needs_human_review": True,
             }
+        elif api_key:
+            vlm_resp = call_vlm(
+                provider=provider,
+                api_base=api_base,
+                api_key=api_key,
+                model=model,
+                prompt=prompt,
+                image_path=montage_png,
+                azure_api_version=azure_api_version,
+            )
+            text = extract_model_text(vlm_resp)
+            vlm_json = robust_json_from_text(text)
+            if "_error" in vlm_resp and not vlm_json:
+                vlm_json = {
+                    "issues": [f"api_error: {vlm_resp.get('_error')}"],
+                    "final_status": "warning",
+                    "needs_human_review": True,
+                }
+        else:
+            vlm_json = {
+                "issues": ["missing_api_key"],
+                "final_status": "warning",
+                "needs_human_review": True,
+            }
+
+        vlm_json = sanitize_vlm_review(vlm_json)
+
+        page_reviews.append({
+            "page_index": page_idx + 1,
+            "indices": page_indices,
+            "artifacts": {"montage_png": str(montage_png)},
+            "prompt": build_logged_prompt(prompt, image_included=True),
+            "response_text": extract_model_text(vlm_resp) if vlm_resp else "",
+            "response_raw": vlm_resp if vlm_resp else None,
+            "vlm_review": vlm_json,
+        })
+
+    statuses = [str((page.get("vlm_review") or {}).get("final_status", "warning")) for page in page_reviews]
+    review_flags = [bool((page.get("vlm_review") or {}).get("needs_human_review")) for page in page_reviews]
+    merged_issues: list[str] = []
+    for page in page_reviews:
+        for issue in (page.get("vlm_review") or {}).get("issues", []) or []:
+            if issue not in merged_issues:
+                merged_issues.append(issue)
+
+    if any(s == "fail" for s in statuses):
+        final_status = "fail"
+    elif any(s == "warning" for s in statuses):
+        final_status = "warning"
     else:
-        vlm_json = {
-            "issues": ["missing_api_key"],
-            "final_status": "warning",
-            "needs_human_review": True,
-        }
+        final_status = "pass"
+
+    vlm_json_aggregate: dict[str, Any] = {
+        "final_status": final_status,
+        "needs_human_review": any(review_flags),
+        "issues": merged_issues,
+        "num_pages": len(page_reviews),
+    }
+    for key in (
+        "sync_score",
+        "contact_consistency_score",
+        "signal_health_score",
+        "instruction_consistency_score",
+    ):
+        vals = [
+            float(page["vlm_review"][key])
+            for page in page_reviews
+            if isinstance((page.get("vlm_review") or {}).get(key), (int, float))
+        ]
+        vlm_json_aggregate[key] = (sum(vals) / len(vals)) if vals else None
 
     return {
         "dataset": ds.name,
@@ -678,23 +913,30 @@ def analyze_one_dataset(
         "selected_tactile_key": tact_key,
         "num_frames": T,
         "sampling": {
-            "strategy": "uniform + top_tactile_change",
+            "strategy": (
+                "uniform + top_tactile_change"
+                if len(energy_candidate_indices) == T
+                else "uniform + top_tactile_change_on_energy_presample"
+            ),
             "max_uniform_samples": max_uniform_samples,
             "max_event_samples": max_event_samples,
             "max_frames_for_vlm": max_frames_for_vlm,
+            "max_frames_for_energy": max_frames_for_energy,
+            "frames_per_montage": 16,
+            "max_montage_pages": 5,
             **sampling,
         },
         "tactile_type_raw": tactile_type_values,
         "tactile_type_normalized": tactile_type_norm,
-        "tactile_render_kind": tactile_kind,
+        "tactile_render_kind": render_kind,
         "tactile_render_range": {"vmin": tactile_vmin, "vmax": tactile_vmax},
         "instruction_samples": instructions,
         "heuristic_signal_summary": heuristic,
         "artifacts": {
-            "montage_png": str(montage_png),
+            "montage_pngs": montage_paths,
         },
-        "vlm_review": vlm_json,
-        "vlm_raw_response": vlm_resp if vlm_resp else None,
+        "vlm_review": vlm_json_aggregate,
+        "vlm_review_pages": page_reviews,
     }
 
 
@@ -728,6 +970,16 @@ def test_api_connectivity(
     return out
 
 
+def _resolve_api_base(provider: str, explicit_api_base: str | None) -> str:
+    if explicit_api_base:
+        return explicit_api_base
+    if provider == "ark":
+        return os.environ.get("ARK_API_BASE", "https://ark.cn-beijing.volces.com/api/v3")
+    if provider == "azure":
+        return os.environ.get("AZURE_ENDPOINT", "")
+    return os.environ.get("OPENAI_API_BASE", "")
+
+
 def run(args: argparse.Namespace) -> int:
     api_key = args.api_key
     if not api_key:
@@ -738,16 +990,20 @@ def run(args: argparse.Namespace) -> int:
         else:
             env_name = "VLM_API_KEY"
         api_key = os.environ.get(env_name)
+    api_base = _resolve_api_base(args.provider, args.api_base)
     output_dir = args.output_dir.expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
     if args.test_api:
+        if not api_base:
+            print("error: api base is required for --test-api", file=sys.stderr)
+            return 2
         if not api_key:
             print("error: api key is required for --test-api", file=sys.stderr)
             return 2
         result = test_api_connectivity(
             args.provider,
-            args.api_base,
+            api_base,
             api_key,
             args.model,
             args.azure_api_version,
@@ -757,15 +1013,20 @@ def run(args: argparse.Namespace) -> int:
 
     datasets = discover_datasets(args.path, args.pattern)
     reports: list[dict[str, Any]] = []
-    for ds in datasets:
+    for ds in _progress(
+        datasets,
+        desc="Datasets",
+        dynamic_ncols=True,
+    ):
         report = analyze_one_dataset(
             ds=ds,
             out_dir=output_dir,
+            max_frames_for_energy=args.max_frames_for_energy,
             max_uniform_samples=args.max_uniform_samples,
             max_event_samples=args.max_event_samples,
             max_frames_for_vlm=args.max_frames_for_vlm,
             provider=args.provider,
-            api_base=args.api_base,
+            api_base=api_base,
             api_key=api_key,
             model=args.model,
             azure_api_version=args.azure_api_version,
@@ -776,9 +1037,9 @@ def run(args: argparse.Namespace) -> int:
         print(f"[{status}] {ds.name}")
 
     out = {
-        "tool": "openxtactile_vlm_check",
+        "tool": "precheck_vlm",
         "provider": args.provider,
-        "api_base": args.api_base,
+        "api_base": api_base,
         "model": args.model,
         "azure_api_version": args.azure_api_version if args.provider == "azure" else None,
         "num_datasets": len(reports),
@@ -786,19 +1047,27 @@ def run(args: argparse.Namespace) -> int:
     }
     out_path = output_dir / "vlm_review.json"
     out_path.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
+    result_out = build_review_result_doc(out)
+    result_out_path = output_dir / "vlm_review_result.json"
+    result_out_path.write_text(json.dumps(result_out, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"Wrote {out_path}")
+    print(f"Wrote {result_out_path}")
     return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        description="VLM-based semantic check for OXT zarr datasets with aggressive downsampling."
+        description="VLM-based semantic precheck for OXT zarr datasets with aggressive downsampling."
     )
     p.add_argument("path", type=Path, help="One *.zarr path or a directory containing *.zarr")
-    p.add_argument("-o", "--output-dir", type=Path, default=Path.cwd() / "vlm_check_output")
+    p.add_argument("-o", "--output-dir", type=Path, default=Path.cwd() / "oxt_check_output")
     p.add_argument("--pattern", default="*.zarr")
     p.add_argument("--provider", choices=["ark", "openai", "azure"], default="ark")
-    p.add_argument("--api-base", default="https://ark.cn-beijing.volces.com/api/v3")
+    p.add_argument(
+        "--api-base",
+        default=None,
+        help="API base/endpoint. If omitted, read from ARK_API_BASE (ark), AZURE_ENDPOINT (azure), or OPENAI_API_BASE (openai). Ark falls back to its default public endpoint.",
+    )
     p.add_argument("--model", default="doubao-seed-2-1-pro-260628")
     p.add_argument(
         "--azure-api-version",
@@ -806,13 +1075,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="Used only when provider=azure (Responses API requires 2025-03-01-preview or later).",
     )
     p.add_argument(
+        "--max-frames-for-energy",
+        type=int,
+        default=20000,
+        help="Upper bound on tactile frames used to estimate energy for event sampling. Large datasets are uniformly presampled to this size before selecting event frames.",
+    )
+    p.add_argument(
         "--api-key",
         default=None,
-        help="API key; defaults to ARK_API_KEY (ark), AZURE_API_KEY (azure), or VLM_API_KEY (openai).",
+        help="API key. If omitted, read from ARK_API_KEY (ark), AZURE_API_KEY (azure), or VLM_API_KEY (openai).",
     )
-    p.add_argument("--max-uniform-samples", type=int, default=12)
-    p.add_argument("--max-event-samples", type=int, default=12)
-    p.add_argument("--max-frames-for-vlm", type=int, default=20)
+    p.add_argument("--max-uniform-samples", type=int, default=40)
+    p.add_argument("--max-event-samples", type=int, default=40)
+    p.add_argument("--max-frames-for-vlm", type=int, default=80)
     p.add_argument("--dry-run", action="store_true", help="Skip API calls; still produce montage/output")
     p.add_argument("--test-api", action="store_true", help="Only test API connectivity and exit")
     return p

@@ -104,7 +104,7 @@ _TACTILE_RE = re.compile(
 )
 
 # Allowed values for the tactile ``type`` stream.
-VALID_TACTILE_TYPES = {"state", "binary", "image"}
+VALID_TACTILE_TYPES = {"state", "binary", "image", "matrix"}
 
 # Optional / supplementary keys we probe for.
 SUPPLEMENTARY_KEYS = ("supplementary_joints", "supplementary_tactile")
@@ -115,11 +115,16 @@ DEFAULT_GAP_FACTOR = 3.0
 # zarr tactile ``type`` -> website sensor-kind bucket (image / array / state).
 # 'image' is unambiguous; the state/binary -> state/array split is a best-effort
 # heuristic (e.g. taxel arrays vs force/torque state) that a human should verify.
-TACTILE_TYPE_TO_SENSOR_KIND = {"image": "image", "state": "state", "binary": "array"}
+TACTILE_TYPE_TO_SENSOR_KIND = {
+    "image": "image",
+    "state": "state",
+    "binary": "array",
+    "matrix": "array",
+}
 
 # Website metadata fields that cannot be derived from the zarr (human-authored).
 HUMAN_METADATA_FIELDS = (
-    "name", "url", "version", "description", "contact", "reference", "code_trigger",
+    "name", "url", "version", "description", "contact", "reference", "code_trigger", "label",
 )
 
 # Status levels for individual checks.
@@ -127,6 +132,18 @@ PASS = "pass"
 WARN = "warn"
 FAIL = "fail"
 SKIP = "skip"
+
+
+# Keys matching these patterns are expected to stay constant over time.
+CONSTANT_KEY_SUBSTRINGS = (
+    "sensor_type",
+    "sensor_name",
+    "joint_idx",
+    "func_area_idx",
+    "_tactile_area_",
+    "_tactile_sensor_",
+    "_tactile_type_",
+)
 
 
 # --------------------------------------------------------------------------- #
@@ -210,6 +227,148 @@ def _to_jsonable(obj: Any) -> Any:
 
 def _shape(arr: Any) -> list[int]:
     return [int(x) for x in arr.shape]
+
+
+def _format_json_compact_lists(obj: Any, indent: int = 2, level: int = 0) -> str:
+    pad = " " * (indent * level)
+    next_pad = " " * (indent * (level + 1))
+
+    if isinstance(obj, dict):
+        if not obj:
+            return "{}"
+        items = []
+        for key, value in obj.items():
+            rendered = _format_json_compact_lists(value, indent=indent, level=level + 1)
+            items.append(f'{next_pad}{json.dumps(str(key), ensure_ascii=False)}: {rendered}')
+        return "{\n" + ",\n".join(items) + "\n" + pad + "}"
+
+    if isinstance(obj, list):
+        if not obj:
+            return "[]"
+        if all(not isinstance(x, (dict, list)) for x in obj):
+            return json.dumps(obj, ensure_ascii=False, separators=(", ", ": "))
+        items = [_format_json_compact_lists(x, indent=indent, level=level + 1) for x in obj]
+        return "[\n" + ",\n".join(f"{next_pad}{item}" for item in items) + "\n" + pad + "]"
+
+    return json.dumps(obj, ensure_ascii=False)
+
+
+def _is_constant_candidate_key(key: str) -> bool:
+    lower = key.lower()
+    if any(token in lower for token in CONSTANT_KEY_SUBSTRINGS):
+        return True
+    if lower.endswith("_idx") or "_idx_" in lower:
+        return True
+    return False
+
+
+def _values_equal_with_nan(arr: np.ndarray, first: np.ndarray) -> np.ndarray:
+    eq = (arr == first)
+    if np.issubdtype(arr.dtype, np.floating) or np.issubdtype(first.dtype, np.floating):
+        eq = eq | (np.isnan(arr) & np.isnan(first))
+    return eq
+
+
+def _check_constant_like_keys(
+    data: Any,
+    data_keys: list[str],
+    report: DatasetReport,
+) -> dict[str, Any]:
+    summary: dict[str, Any] = {}
+    changed_keys: list[str] = []
+
+    for key in data_keys:
+        if not _is_constant_candidate_key(key):
+            continue
+
+        arr = np.asarray(data[key][:])
+        entry: dict[str, Any] = {
+            "expected_constant": True,
+            "shape": _shape(data[key]),
+            "dtype": str(data[key].dtype),
+        }
+
+        if arr.ndim == 0:
+            entry["is_constant_over_time"] = True
+            entry["constant_value"] = _to_jsonable(arr)
+            summary[key] = entry
+            continue
+
+        if arr.shape[0] == 0:
+            entry["is_constant_over_time"] = True
+            entry["constant_value"] = None
+            summary[key] = entry
+            continue
+
+        first = arr[0]
+        if arr.ndim == 1:
+            row_equal = _values_equal_with_nan(arr, first)
+        else:
+            axes = tuple(range(1, arr.ndim))
+            row_equal = np.all(_values_equal_with_nan(arr, first), axis=axes)
+
+        is_constant = bool(np.all(row_equal))
+        entry["is_constant_over_time"] = is_constant
+        if is_constant:
+            entry["constant_value"] = _to_jsonable(first)
+        else:
+            changed_keys.append(key)
+            first_change_index = int(np.flatnonzero(~row_equal)[0])
+            entry["first_value"] = _to_jsonable(first)
+            entry["first_change_index"] = first_change_index
+            entry["num_changed_frames"] = int(np.sum(~row_equal))
+            report.add(
+                f"constant_like::{key}",
+                WARN,
+                f"'{key}' looks like a constant/index key but changes over time",
+                first_change_index=first_change_index,
+                num_changed_frames=int(np.sum(~row_equal)),
+            )
+        summary[key] = entry
+
+    if not summary:
+        report.add("constant_like_keys", SKIP, "no constant-like keys found")
+    elif changed_keys:
+        report.add(
+            "constant_like_keys",
+            WARN,
+            f"{len(changed_keys)} constant-like key(s) change over time",
+            changed_keys=changed_keys,
+            num_checked=len(summary),
+        )
+    else:
+        report.add(
+            "constant_like_keys",
+            PASS,
+            f"all {len(summary)} constant-like key(s) are stable over time",
+            checked_keys=sorted(summary.keys()),
+        )
+
+    return summary
+
+
+def _build_dict_export(
+    key_info: dict[str, dict[str, Any]],
+    meta_key_info: dict[str, dict[str, Any]],
+    constant_like: dict[str, Any],
+) -> dict[str, Any]:
+    out: dict[str, Any] = {}
+    for key, info in key_info.items():
+        entry: dict[str, Any] = {
+            "shape": info["shape"],
+            "dtype": info["dtype"],
+        }
+        if key in constant_like:
+            extra = {k: v for k, v in constant_like[key].items() if k not in ("shape", "dtype")}
+            entry.update(extra)
+        out[key] = entry
+
+    for key, info in meta_key_info.items():
+        out[f"meta/{key}"] = {
+            "shape": info["shape"],
+            "dtype": info["dtype"],
+        }
+    return out
 
 
 # --------------------------------------------------------------------------- #
@@ -416,7 +575,10 @@ def check_dataset(zarr_path: Path, gap_factor: float = DEFAULT_GAP_FACTOR) -> tu
     # --- 6. hand_joints / hand_joints_idx -------------------------------- #
     hand_summary = _check_hand_joints(data_keys, key_info, report)
 
-    # --- 7. supplementary ------------------------------------------------- #
+    # --- 7. constant-like keys ------------------------------------------- #
+    constant_like_summary = _check_constant_like_keys(data, data_keys, report)
+
+    # --- 8. supplementary ------------------------------------------------- #
     supp_summary: dict[str, Any] = {}
     for sk in SUPPLEMENTARY_KEYS:
         if sk in key_info:
@@ -431,22 +593,26 @@ def check_dataset(zarr_path: Path, gap_factor: float = DEFAULT_GAP_FACTOR) -> tu
             report.add(f"supplementary::{sk}", SKIP, f"'{sk}' not present (optional)")
 
     # --- assemble metadata summary --------------------------------------- #
+    meta_key_info = (
+        {k: {"shape": _shape(meta_grp[k]), "dtype": str(meta_grp[k].dtype)}
+         for k in sorted(meta_grp.array_keys())}
+        if meta_grp is not None else {}
+    )
+
     meta_summary.update({
         "num_episodes": int(episode_ends.shape[0]) if episode_ends is not None else None,
         "num_frames": T,
         "num_data_keys": len(key_info),
         "keys": key_info,
-        "meta_keys": (
-            {k: {"shape": _shape(meta_grp[k]), "dtype": str(meta_grp[k].dtype)}
-             for k in sorted(meta_grp.array_keys())}
-            if meta_grp is not None else {}
-        ),
+        "meta_keys": meta_key_info,
         "timestamps": ts_summary,
         "rgb_keys": rgb_keys,
         "tactile_sets": tactile_summary,
         "hand_joints": hand_summary,
+        "constant_like_keys": constant_like_summary,
         "supplementary": supp_summary,
         "instructions": _instruction_samples(data, data_keys),
+        "dict_export": _build_dict_export(key_info, meta_key_info, constant_like_summary),
         "precheck_passed": report.passed,
     })
 
@@ -778,6 +944,7 @@ def build_renderable_metadata(
         "task": task,
         "trajectory": trajectory,
         "frame": frame,
+        "label": keep_or("label", []),
         "contact": keep_or("contact", []),
         "reference": keep_or("reference", {"paper": "", "website": "", "authors": ""}),
         "code_trigger": keep_or("code_trigger", ""),
@@ -787,24 +954,28 @@ def build_renderable_metadata(
     needs_review: list[str] = []
     if not type_confident and not (existing.get("type")):
         needs_review.append(
-            f"type='{metadata['type']}' 为启发式推断（无法从数据区分 dexhand/human），请确认"
+            f"type='{metadata['type']}' was inferred heuristically; the zarr data alone "
+            "cannot reliably distinguish dexhand from human. Please confirm."
         )
     if not existing:
         needs_review.append(
-            "sensor_array/sensor_state 划分为启发式（zarr tactile type: image->image, "
-            "binary->array, state->state），请确认"
+            "sensor_array/sensor_state assignment was inferred heuristically from tactile "
+            "types (image->image, binary->array, state->state). Please confirm."
         )
     if unknown_types:
-        needs_review.append(f"发现未知 tactile type: {unknown_types}（未归入任何 sensor_* 桶）")
+        needs_review.append(
+            f"Unknown tactile type(s) found: {unknown_types} "
+            "(not assigned to any sensor_* bucket)."
+        )
     missing_human = [
-        f for f in ("url", "version", "description", "contact", "code_trigger")
+        f for f in ("url", "version", "description", "contact", "code_trigger", "label")
         if not metadata.get(f)
     ]
     ref = metadata.get("reference") or {}
     if not any((ref.get("paper"), ref.get("website"), ref.get("authors"))):
         missing_human.append("reference")
     if missing_human:
-        needs_review.append(f"以下人工字段需手动填写: {missing_human}")
+        needs_review.append(f"Please fill these human-authored fields manually: {missing_human}")
 
     # Note any discrepancy between the derived sensors and a merged file.
     discrepancy: dict[str, Any] = {}
@@ -819,7 +990,10 @@ def build_renderable_metadata(
                 if sorted(eval_ or []) != sorted(dval or []):
                     discrepancy[field] = {"existing": eval_ or [], "derived": dval}
         if discrepancy:
-            needs_review.append(f"合并文件与数据推断不一致: {sorted(discrepancy)}（已保留原文件值）")
+            needs_review.append(
+                f"Merged metadata differs from zarr-derived values for: {sorted(discrepancy)} "
+                "(the merged-file values were kept)."
+            )
 
     export_info = {
         "output": "metadata.json",
@@ -855,6 +1029,58 @@ def _default_source_name(input_path: Path) -> str:
     if name.endswith(".zarr"):
         name = name[: -len(".zarr")]
     return name
+
+
+def build_precheck_report_result_doc(
+    header: dict[str, Any],
+    reports: list[DatasetReport],
+    export_info: dict[str, Any],
+) -> dict[str, Any]:
+    dataset_results: list[dict[str, Any]] = []
+    failed_datasets: list[str] = []
+    warning_datasets: list[str] = []
+    needs_human_check = list(export_info.get("needs_review", []))
+
+    for report in reports:
+        failed_checks = [
+            {"name": c.name, "message": c.message}
+            for c in report.checks
+            if c.status == FAIL
+        ]
+        warning_checks = [
+            {"name": c.name, "message": c.message}
+            for c in report.checks
+            if c.status == WARN
+        ]
+
+        if failed_checks:
+            final_status = "fail"
+            failed_datasets.append(report.name)
+        elif warning_checks:
+            final_status = "warning"
+            warning_datasets.append(report.name)
+        else:
+            final_status = "pass"
+
+        dataset_results.append({
+            "dataset": report.name,
+            "final_status": final_status,
+            "failed_checks": failed_checks,
+            "warning_checks": warning_checks,
+        })
+
+    overall_status = "fail" if failed_datasets else ("warning" if warning_datasets or needs_human_check else "pass")
+
+    return {
+        "tool": header.get("tool"),
+        "generated_at": header.get("generated_at"),
+        "input_path": header.get("input_path"),
+        "overall_status": overall_status,
+        "failed_datasets": failed_datasets,
+        "warning_datasets": warning_datasets,
+        "needs_human_check": needs_human_check,
+        "datasets": dataset_results,
+    }
 
 
 def run(
@@ -901,6 +1127,7 @@ def run(
 
     # --- renderable metadata.json (aggregate all datasets as one source) ----- #
     metadata_path: Path | None = None
+    dict_path: Path | None = None
     export_info: dict[str, Any] = {}
     if emit_metadata:
         name = source_name or _default_source_name(input_path)
@@ -908,6 +1135,20 @@ def run(
         metadata_path = output_dir / "metadata.json"
         with open(metadata_path, "w", encoding="utf-8") as f:
             json.dump(_to_jsonable(metadata), f, ensure_ascii=False, indent=2)
+
+    # --- dict.json: all keys + constant-like key summaries ------------------ #
+    dict_doc: dict[str, Any]
+    if len(summaries) == 1:
+        dict_doc = _to_jsonable(summaries[0].get("dict_export") or {})
+    else:
+        dict_doc = {
+            s.get("name", f"dataset_{idx}"): _to_jsonable(s.get("dict_export") or {})
+            for idx, s in enumerate(summaries)
+        }
+    dict_path = output_dir / "dict.json"
+    with open(dict_path, "w", encoding="utf-8") as f:
+        f.write(_format_json_compact_lists(dict_doc))
+        f.write("\n")
 
     # --- precheck_report.json: checks + per-dataset technical metadata ------- #
     precheck_doc = {
@@ -922,10 +1163,17 @@ def run(
     with open(precheck_path, "w", encoding="utf-8") as f:
         json.dump(_to_jsonable(precheck_doc), f, ensure_ascii=False, indent=2)
 
+    precheck_result_doc = build_precheck_report_result_doc(header, reports, export_info or {})
+    precheck_result_path = output_dir / "precheck_report_result.json"
+    with open(precheck_result_path, "w", encoding="utf-8") as f:
+        json.dump(_to_jsonable(precheck_result_doc), f, ensure_ascii=False, indent=2)
+
     print()
     print("=" * 60)
     print(f"Datasets: {len(reports)} | passed: {num_passed} | failed: {num_failed}")
     print(f"Wrote check summary  -> {precheck_path}")
+    print(f"Wrote compact result -> {precheck_result_path}")
+    print(f"Wrote dict export    -> {dict_path}")
     if metadata_path is not None:
         counts = export_info.get("derived_counts", {})
         print(
@@ -967,7 +1215,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=float,
         default=DEFAULT_GAP_FACTOR,
         help="A timestamp step larger than this multiple of the median step "
-             "is flagged as a gap/断层 (default: 3.0).",
+             "is flagged as a gap (default: 3.0).",
     )
     parser.add_argument(
         "--source-name",
@@ -1011,3 +1259,5 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+# python precheck_metadata.py FTP1_data_example\\MotionTrans\\robot_se+put_bread_to_the_red_pad+.zarr

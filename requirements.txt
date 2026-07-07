@@ -1,0 +1,12 @@
+viser
+numpy
+imageio
+open3d
+scipy
+tqdm
+zarr
+numcodecs
+matplotlib
+pillow
+openai
+volcengine-python-sdk[ark]

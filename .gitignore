@@ -5,3 +5,4 @@ __pycache__/
 reports/
 data/raw/
 !data/raw/.gitkeep
+FTP1_data_example/

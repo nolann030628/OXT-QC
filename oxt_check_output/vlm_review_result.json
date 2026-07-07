@@ -1,0 +1,154 @@
+{
+  "reports": [
+    {
+      "dataset": "peg_insertion.zarr",
+      "path": "D:\\000-TsinghuaUniversity\\project\\202607_ftp_x\\OXT-QC\\FTP1_data_example\\ViTaMIn\\peg_insertion.zarr",
+      "sync": {
+        "average_score": 0.89,
+        "pass_pages": [
+          {
+            "page_index": 1,
+            "score": 0.85
+          },
+          {
+            "page_index": 2,
+            "score": 0.88
+          },
+          {
+            "page_index": 3,
+            "score": 0.92
+          },
+          {
+            "page_index": 4,
+            "score": 0.87
+          },
+          {
+            "page_index": 5,
+            "score": 0.93
+          }
+        ],
+        "warning_pages": [],
+        "fail_pages": [],
+        "error_pages": []
+      },
+      "contact_consistency": {
+        "average_score": 0.812,
+        "pass_pages": [
+          {
+            "page_index": 2,
+            "score": 0.82
+          },
+          {
+            "page_index": 3,
+            "score": 0.88
+          },
+          {
+            "page_index": 5,
+            "score": 0.86
+          }
+        ],
+        "warning_pages": [
+          {
+            "page_index": 1,
+            "score": 0.72,
+            "reason": [
+              "intermittent sparse/dropout-like tactile frames at early and some later timestamps",
+              "contact pattern is mostly coherent diagonal traces but with occasional discontinuities",
+              "RGB shows peg/table interaction setup consistent with insertion task, but no clearly visible completed insertion"
+            ]
+          },
+          {
+            "page_index": 4,
+            "score": 0.78,
+            "reason": [
+              "tactile frames are sparse/intermittent across the sequence",
+              "contact patterns shift between dual diagonal traces and isolated vertical activations",
+              "several frames show very low tactile activity despite similar tabletop view",
+              "possible mild tactile dropout or unstable channel activation"
+            ]
+          }
+        ],
+        "fail_pages": [],
+        "error_pages": []
+      },
+      "signal_health": {
+        "average_score": 0.752,
+        "pass_pages": [
+          {
+            "page_index": 3,
+            "score": 0.84
+          }
+        ],
+        "warning_pages": [
+          {
+            "page_index": 1,
+            "score": 0.68,
+            "reason": [
+              "intermittent sparse/dropout-like tactile frames at early and some later timestamps",
+              "contact pattern is mostly coherent diagonal traces but with occasional discontinuities",
+              "RGB shows peg/table interaction setup consistent with insertion task, but no clearly visible completed insertion"
+            ]
+          },
+          {
+            "page_index": 2,
+            "score": 0.74,
+            "reason": [
+              "tactile frames show sparse/striped activations with occasional dropouts",
+              "some temporal variation in contact pattern without clear corresponding RGB change",
+              "tactile signal appears low-dimensional/partially saturated in columns"
+            ]
+          },
+          {
+            "page_index": 4,
+            "score": 0.72,
+            "reason": [
+              "tactile frames are sparse/intermittent across the sequence",
+              "contact patterns shift between dual diagonal traces and isolated vertical activations",
+              "several frames show very low tactile activity despite similar tabletop view",
+              "possible mild tactile dropout or unstable channel activation"
+            ]
+          },
+          {
+            "page_index": 5,
+            "score": 0.78,
+            "reason": [
+              "intermittent sparse tactile frames in later samples",
+              "some tactile channels appear weak or partially inactive",
+              "contact pattern varies from strong edge bands to very sparse events"
+            ]
+          }
+        ],
+        "fail_pages": [],
+        "error_pages": []
+      },
+      "instruction_consistency": {
+        "average_score": 0.9460000000000001,
+        "pass_pages": [
+          {
+            "page_index": 1,
+            "score": 0.94
+          },
+          {
+            "page_index": 2,
+            "score": 0.93
+          },
+          {
+            "page_index": 3,
+            "score": 0.95
+          },
+          {
+            "page_index": 4,
+            "score": 0.94
+          },
+          {
+            "page_index": 5,
+            "score": 0.97
+          }
+        ],
+        "warning_pages": [],
+        "fail_pages": [],
+        "error_pages": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,610 @@
+{
+  "tool": "openxtactile_check_zarr",
+  "version": "1.0.0",
+  "generated_at": "2026-07-07T23:02:32",
+  "input_path": "D:\\000-TsinghuaUniversity\\project\\202607_ftp_x\\OXT-QC\\FTP1_data_example\\MotionTrans\\robot_se+put_bread_to_the_red_pad+.zarr",
+  "num_datasets": 1,
+  "num_passed": 1,
+  "num_failed": 0,
+  "metadata_export": {
+    "output": "metadata.json",
+    "source_name": "robot_se+put_bread_to_the_red_pad+",
+    "num_zarr_aggregated": 1,
+    "merged_from": null,
+    "auto_filled_from_zarr": [
+      "task",
+      "trajectory",
+      "frame",
+      "type",
+      "sensor_image",
+      "sensor_array",
+      "sensor_state"
+    ],
+    "derived_counts": {
+      "task": 1,
+      "trajectory": 50,
+      "frame": 7962
+    },
+    "needs_review": [
+      "type='dexhand' was inferred heuristically; the zarr data alone cannot reliably distinguish dexhand from human. Please confirm.",
+      "sensor_array/sensor_state assignment was inferred heuristically from tactile types (image->image, binary->array, state->state). Please confirm.",
+      "Please fill these human-authored fields manually: ['url', 'version', 'description', 'contact', 'code_trigger', 'label', 'reference']"
+    ],
+    "merge_discrepancy": null
+  },
+  "datasets": [
+    {
+      "name": "robot_se+put_bread_to_the_red_pad+.zarr",
+      "path": "D:\\000-TsinghuaUniversity\\project\\202607_ftp_x\\OXT-QC\\FTP1_data_example\\MotionTrans\\robot_se+put_bread_to_the_red_pad+.zarr",
+      "passed": true,
+      "num_errors": 0,
+      "num_warnings": 0,
+      "checks": [
+        {
+          "name": "open_zarr",
+          "status": "pass",
+          "message": "zarr group opened successfully"
+        },
+        {
+          "name": "has_data_group",
+          "status": "pass",
+          "message": "'data' group present"
+        },
+        {
+          "name": "episode_ends",
+          "status": "pass",
+          "message": "50 episode(s)",
+          "detail": {
+            "num_episodes": 50,
+            "last": 7962
+          }
+        },
+        {
+          "name": "key_shape_dtype",
+          "status": "pass",
+          "message": "catalogued 15 data array(s)",
+          "detail": {
+            "num_keys": 15
+          }
+        },
+        {
+          "name": "frame_consistency",
+          "status": "pass",
+          "message": "all arrays share T=7962",
+          "detail": {
+            "num_frames": 7962
+          }
+        },
+        {
+          "name": "episode_ends_vs_frames",
+          "status": "pass",
+          "message": "episode_ends[-1] == T == 7962"
+        },
+        {
+          "name": "timestamps_present",
+          "status": "pass",
+          "message": "timestamps present (7962 values)"
+        },
+        {
+          "name": "timestamps_monotonic",
+          "status": "pass",
+          "message": "timestamps strictly increasing within every episode (reset at episode boundaries, as expected)"
+        },
+        {
+          "name": "timestamps_gaps",
+          "status": "pass",
+          "message": "no gaps (median step=0.05, max step=0.0500002)"
+        },
+        {
+          "name": "rgb_present",
+          "status": "pass",
+          "message": "found 1 RGB stream(s)",
+          "detail": {
+            "rgb_keys": [
+              "camera_ego_rgb"
+            ]
+          }
+        },
+        {
+          "name": "tactile_set::right/fingertorque",
+          "status": "pass",
+          "message": "complete four-piece set (C=4, type=['state'])"
+        },
+        {
+          "name": "tactile_set::right/thumbtorque",
+          "status": "pass",
+          "message": "complete four-piece set (C=1, type=['state'])"
+        },
+        {
+          "name": "hand_joints::right_hand_joints",
+          "status": "pass",
+          "message": "'right_hand_joints' paired with 'right_hand_joints_idx' (N=6)"
+        },
+        {
+          "name": "constant_like_keys",
+          "status": "pass",
+          "message": "all 7 constant-like key(s) are stable over time",
+          "detail": {
+            "checked_keys": [
+              "right_hand_joints_idx",
+              "right_tactile_area_fingertorque",
+              "right_tactile_area_thumbtorque",
+              "right_tactile_sensor_fingertorque",
+              "right_tactile_sensor_thumbtorque",
+              "right_tactile_type_fingertorque",
+              "right_tactile_type_thumbtorque"
+            ]
+          }
+        },
+        {
+          "name": "supplementary::supplementary_joints",
+          "status": "skip",
+          "message": "'supplementary_joints' not present (optional)"
+        },
+        {
+          "name": "supplementary::supplementary_tactile",
+          "status": "skip",
+          "message": "'supplementary_tactile' not present (optional)"
+        }
+      ],
+      "metadata": {
+        "name": "robot_se+put_bread_to_the_red_pad+.zarr",
+        "path": "D:\\000-TsinghuaUniversity\\project\\202607_ftp_x\\OXT-QC\\FTP1_data_example\\MotionTrans\\robot_se+put_bread_to_the_red_pad+.zarr",
+        "num_episodes": 50,
+        "num_frames": 7962,
+        "num_data_keys": 15,
+        "keys": {
+          "camera_ego_real_timestamp": {
+            "shape": [
+              7962
+            ],
+            "dtype": "float64"
+          },
+          "camera_ego_rgb": {
+            "shape": [
+              7962,
+              224,
+              224,
+              3
+            ],
+            "dtype": "uint8"
+          },
+          "right_hand_joints": {
+            "shape": [
+              7962,
+              6
+            ],
+            "dtype": "float64"
+          },
+          "right_hand_joints_idx": {
+            "shape": [
+              7962,
+              6
+            ],
+            "dtype": "int64"
+          },
+          "right_tactile_area_fingertorque": {
+            "shape": [
+              7962,
+              4
+            ],
+            "dtype": "int64"
+          },
+          "right_tactile_area_thumbtorque": {
+            "shape": [
+              7962,
+              1
+            ],
+            "dtype": "int64"
+          },
+          "right_tactile_data_fingertorque": {
+            "shape": [
+              7962,
+              4,
+              1
+            ],
+            "dtype": "float64"
+          },
+          "right_tactile_data_thumbtorque": {
+            "shape": [
+              7962,
+              1,
+              2
+            ],
+            "dtype": "float64"
+          },
+          "right_tactile_sensor_fingertorque": {
+            "shape": [
+              7962
+            ],
+            "dtype": "<U19"
+          },
+          "right_tactile_sensor_thumbtorque": {
+            "shape": [
+              7962
+            ],
+            "dtype": "<U19"
+          },
+          "right_tactile_type_fingertorque": {
+            "shape": [
+              7962
+            ],
+            "dtype": "<U5"
+          },
+          "right_tactile_type_thumbtorque": {
+            "shape": [
+              7962
+            ],
+            "dtype": "<U5"
+          },
+          "right_wrist_pose": {
+            "shape": [
+              7962,
+              6
+            ],
+            "dtype": "float64"
+          },
+          "sub_task_instruction": {
+            "shape": [
+              7962
+            ],
+            "dtype": "<U100"
+          },
+          "timestamps": {
+            "shape": [
+              7962
+            ],
+            "dtype": "float64"
+          }
+        },
+        "meta_keys": {
+          "episode_ends": {
+            "shape": [
+              50
+            ],
+            "dtype": "int64"
+          }
+        },
+        "timestamps": {
+          "present": true,
+          "dtype": "float64",
+          "count": 7962,
+          "min": 1747054746.41492,
+          "max": 1747058938.896626,
+          "global_monotonic": false,
+          "per_episode_monotonic": true,
+          "median_step": 0.04999995231628418,
+          "max_step": 0.05000019073486328,
+          "gap_threshold": 0.14999985694885254,
+          "num_gaps": 0
+        },
+        "rgb_keys": [
+          "camera_ego_rgb"
+        ],
+        "tactile_sets": [
+          {
+            "set": "right/fingertorque",
+            "prefix": "right",
+            "detail": "fingertorque",
+            "members_present": [
+              "area",
+              "data",
+              "sensor",
+              "type"
+            ],
+            "members_missing": [],
+            "complete": true,
+            "data_shape": [
+              7962,
+              4,
+              1
+            ],
+            "data_dtype": "float64",
+            "area_shape": [
+              7962,
+              4
+            ],
+            "num_channels": 4,
+            "sensor": [
+              "InspireHand"
+            ],
+            "type": [
+              "state"
+            ]
+          },
+          {
+            "set": "right/thumbtorque",
+            "prefix": "right",
+            "detail": "thumbtorque",
+            "members_present": [
+              "area",
+              "data",
+              "sensor",
+              "type"
+            ],
+            "members_missing": [],
+            "complete": true,
+            "data_shape": [
+              7962,
+              1,
+              2
+            ],
+            "data_dtype": "float64",
+            "area_shape": [
+              7962,
+              1
+            ],
+            "num_channels": 1,
+            "sensor": [
+              "InspireHand"
+            ],
+            "type": [
+              "state"
+            ]
+          }
+        ],
+        "hand_joints": {
+          "right_hand_joints": {
+            "joints_shape": [
+              7962,
+              6
+            ],
+            "idx_present": true,
+            "idx_shape": [
+              7962,
+              6
+            ],
+            "num_joints": 6
+          }
+        },
+        "constant_like_keys": {
+          "right_hand_joints_idx": {
+            "expected_constant": true,
+            "shape": [
+              7962,
+              6
+            ],
+            "dtype": "int64",
+            "is_constant_over_time": true,
+            "constant_value": [
+              22,
+              17,
+              12,
+              7,
+              2,
+              1
+            ]
+          },
+          "right_tactile_area_fingertorque": {
+            "expected_constant": true,
+            "shape": [
+              7962,
+              4
+            ],
+            "dtype": "int64",
+            "is_constant_over_time": true,
+            "constant_value": [
+              20,
+              19,
+              18,
+              17
+            ]
+          },
+          "right_tactile_area_thumbtorque": {
+            "expected_constant": true,
+            "shape": [
+              7962,
+              1
+            ],
+            "dtype": "int64",
+            "is_constant_over_time": true,
+            "constant_value": [
+              16
+            ]
+          },
+          "right_tactile_sensor_fingertorque": {
+            "expected_constant": true,
+            "shape": [
+              7962
+            ],
+            "dtype": "<U19",
+            "is_constant_over_time": true,
+            "constant_value": "InspireHand"
+          },
+          "right_tactile_sensor_thumbtorque": {
+            "expected_constant": true,
+            "shape": [
+              7962
+            ],
+            "dtype": "<U19",
+            "is_constant_over_time": true,
+            "constant_value": "InspireHand"
+          },
+          "right_tactile_type_fingertorque": {
+            "expected_constant": true,
+            "shape": [
+              7962
+            ],
+            "dtype": "<U5",
+            "is_constant_over_time": true,
+            "constant_value": "state"
+          },
+          "right_tactile_type_thumbtorque": {
+            "expected_constant": true,
+            "shape": [
+              7962
+            ],
+            "dtype": "<U5",
+            "is_constant_over_time": true,
+            "constant_value": "state"
+          }
+        },
+        "supplementary": {
+          "supplementary_joints": null,
+          "supplementary_tactile": null
+        },
+        "instructions": {
+          "sub_task_instruction": [
+            "Grab the bread and place it on the red circular area of the table.",
+            "Grab the bread and position it on top of the red circle.",
+            "Grab the bread and set it down in the middle of the red pad.",
+            "Lift the bread and carefully place it on the red circular pad.",
+            "Move the bread from its position to the top of the red pad.",
+            "Move the yellow bread into place on the red pad.",
+            "Pick up the bread and move it to the red circular pad.",
+            "Pick up the bread and set it down on the red disc.",
+            "Pick up the bread with the robotic hand and position it on the red pad.",
+            "Pick up the yellow bread and gently set it down on the red pad."
+          ],
+          "sub_task_instruction_num_unique": 26
+        },
+        "dict_export": {
+          "camera_ego_real_timestamp": {
+            "shape": [
+              7962
+            ],
+            "dtype": "float64"
+          },
+          "camera_ego_rgb": {
+            "shape": [
+              7962,
+              224,
+              224,
+              3
+            ],
+            "dtype": "uint8"
+          },
+          "right_hand_joints": {
+            "shape": [
+              7962,
+              6
+            ],
+            "dtype": "float64"
+          },
+          "right_hand_joints_idx": {
+            "shape": [
+              7962,
+              6
+            ],
+            "dtype": "int64",
+            "expected_constant": true,
+            "is_constant_over_time": true,
+            "constant_value": [
+              22,
+              17,
+              12,
+              7,
+              2,
+              1
+            ]
+          },
+          "right_tactile_area_fingertorque": {
+            "shape": [
+              7962,
+              4
+            ],
+            "dtype": "int64",
+            "expected_constant": true,
+            "is_constant_over_time": true,
+            "constant_value": [
+              20,
+              19,
+              18,
+              17
+            ]
+          },
+          "right_tactile_area_thumbtorque": {
+            "shape": [
+              7962,
+              1
+            ],
+            "dtype": "int64",
+            "expected_constant": true,
+            "is_constant_over_time": true,
+            "constant_value": [
+              16
+            ]
+          },
+          "right_tactile_data_fingertorque": {
+            "shape": [
+              7962,
+              4,
+              1
+            ],
+            "dtype": "float64"
+          },
+          "right_tactile_data_thumbtorque": {
+            "shape": [
+              7962,
+              1,
+              2
+            ],
+            "dtype": "float64"
+          },
+          "right_tactile_sensor_fingertorque": {
+            "shape": [
+              7962
+            ],
+            "dtype": "<U19",
+            "expected_constant": true,
+            "is_constant_over_time": true,
+            "constant_value": "InspireHand"
+          },
+          "right_tactile_sensor_thumbtorque": {
+            "shape": [
+              7962
+            ],
+            "dtype": "<U19",
+            "expected_constant": true,
+            "is_constant_over_time": true,
+            "constant_value": "InspireHand"
+          },
+          "right_tactile_type_fingertorque": {
+            "shape": [
+              7962
+            ],
+            "dtype": "<U5",
+            "expected_constant": true,
+            "is_constant_over_time": true,
+            "constant_value": "state"
+          },
+          "right_tactile_type_thumbtorque": {
+            "shape": [
+              7962
+            ],
+            "dtype": "<U5",
+            "expected_constant": true,
+            "is_constant_over_time": true,
+            "constant_value": "state"
+          },
+          "right_wrist_pose": {
+            "shape": [
+              7962,
+              6
+            ],
+            "dtype": "float64"
+          },
+          "sub_task_instruction": {
+            "shape": [
+              7962
+            ],
+            "dtype": "<U100"
+          },
+          "timestamps": {
+            "shape": [
+              7962
+            ],
+            "dtype": "float64"
+          },
+          "meta/episode_ends": {
+            "shape": [
+              50
+            ],
+            "dtype": "int64"
+          }
+        },
+        "precheck_passed": true
+      }
+    }
+  ]
+}
