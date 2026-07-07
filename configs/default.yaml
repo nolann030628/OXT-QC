@@ -1,0 +1,11 @@
+required_fields:
+  - sample_id
+  - timestamp
+  - sensor_id
+  - modality
+file_rules:
+  allow_extensions:
+    - .json
+    - .csv
+    - .png
+  min_files: 1
