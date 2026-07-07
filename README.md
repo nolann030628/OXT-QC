@@ -28,6 +28,7 @@
 conda create -n oxt-qc python=3.11 -y
 conda activate oxt-qc
 pip install zarr numpy pillow matplotlib imageio "volcengine-python-sdk[ark]"
+pip install openai
 ```
 
 如果你不使用 conda，也可以继续用 `venv`：
@@ -35,7 +36,7 @@ pip install zarr numpy pillow matplotlib imageio "volcengine-python-sdk[ark]"
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install zarr numpy pillow matplotlib imageio "volcengine-python-sdk[ark]"
+pip install zarr numpy pillow matplotlib imageio "volcengine-python-sdk[ark]" openai
 ```
 
 ## 预检示例
@@ -54,6 +55,33 @@ python scripts/openxtactile_vlm_check.py /path/to/source_or_dataset \
   --api-base "https://ark.cn-beijing.volces.com/api/v3" \
   --model "doubao-seed-2-1-pro-260628" \
   -o reports/vlm_output
+```
+
+## VLM 检查示例（Azure OpenAI / gpt-5.4）
+
+```bash
+export AZURE_ENDPOINT="https://gaoya-mk3ncmmi-eastus2.cognitiveservices.azure.com/"
+export AZURE_API_KEY="你的 key"
+
+python scripts/openxtactile_vlm_check.py /path/to/source_or_dataset \
+  --provider azure \
+  --api-base "$AZURE_ENDPOINT" \
+  --api-key "$AZURE_API_KEY" \
+  --model "gpt-5.4" \
+  --azure-api-version "2025-03-01-preview" \
+  -o reports/vlm_output_azure
+```
+
+仅测试连通性：
+
+```bash
+python scripts/openxtactile_vlm_check.py /path/to/source_or_dataset \
+  --provider azure \
+  --api-base "$AZURE_ENDPOINT" \
+  --api-key "$AZURE_API_KEY" \
+  --model "gpt-5.4" \
+  --azure-api-version "2025-03-01-preview" \
+  --test-api
 ```
 
 ## 输出文件

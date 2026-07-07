@@ -37,6 +37,23 @@ python scripts/openxtactile_vlm_check.py <zarr或父目录> \
 --api-key "<ARK_API_KEY>"
 ```
 
+## 固定命令模板（Azure OpenAI）
+
+```bash
+python scripts/openxtactile_vlm_check.py <zarr或父目录> \
+  --provider azure \
+  --api-base "https://<your-resource>.cognitiveservices.azure.com/" \
+  --model "gpt-5.4" \
+  --azure-api-version "2025-03-01-preview" \
+  -o reports/vlm_run_azure
+```
+
+若 key 不在环境变量中，追加：
+
+```bash
+--api-key "<AZURE_API_KEY>"
+```
+
 ## API 先验检查
 
 先做连通性测试，避免长任务失败：
@@ -69,4 +86,5 @@ python scripts/openxtactile_vlm_check.py <任意路径> \
 
 - `ModelNotOpen`：模型未开通或模型名/endpoint 不匹配，需在 Ark 控制台核对。
 - `invalid_api_key`：key 无效或环境变量未设置。
+- Azure `BadRequest` 提示 Responses API 版本过低：将 `--azure-api-version` 调整到 `2025-03-01-preview` 或更高。
 - 若模型对 tactile 误判偏多，先确认渲染类型是否正确（`state` vs `array/image`）。

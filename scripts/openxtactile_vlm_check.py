@@ -28,6 +28,11 @@ try:
 except ImportError:  # pragma: no cover
     Ark = None
 
+try:
+    from openai import AzureOpenAI
+except ImportError:  # pragma: no cover
+    AzureOpenAI = None
+
 
 TACTILE_TYPE_ALIAS = {
     "state": "state",
@@ -427,7 +432,35 @@ def call_vlm(
     model: str,
     prompt: str,
     image_path: Path | None = None,
+    azure_api_version: str = "2025-03-01-preview",
 ) -> dict[str, Any]:
+    if provider == "azure":
+        if AzureOpenAI is None:
+            return {"_error": "missing_dependency: openai is not installed"}
+        try:
+            client = AzureOpenAI(
+                azure_endpoint=api_base,
+                api_key=api_key,
+                api_version=azure_api_version,
+            )
+            if image_path is None:
+                input_payload: Any = prompt
+            else:
+                b64 = encode_image_base64(image_path)
+                input_payload = [{
+                    "role": "user",
+                    "content": [
+                        {"type": "input_image", "image_url": f"data:image/png;base64,{b64}"},
+                        {"type": "input_text", "text": prompt},
+                    ],
+                }]
+            resp = client.responses.create(
+                model=model,
+                input=input_payload,
+            )
+            return _response_to_dict(resp)
+        except Exception as exc:  # noqa: BLE001
+            return {"_error": str(exc)}
     if provider == "ark":
         return call_ark_responses(
             api_base=api_base,
@@ -513,6 +546,7 @@ def analyze_one_dataset(
     api_base: str,
     api_key: str | None,
     model: str,
+    azure_api_version: str,
     dry_run: bool,
 ) -> dict[str, Any]:
     root = zarr.open_group(str(ds.path), mode="r")
@@ -619,6 +653,7 @@ def analyze_one_dataset(
             model=model,
             prompt=prompt,
             image_path=montage_png,
+            azure_api_version=azure_api_version,
         )
         text = extract_model_text(vlm_resp)
         vlm_json = robust_json_from_text(text)
@@ -663,7 +698,13 @@ def analyze_one_dataset(
     }
 
 
-def test_api_connectivity(provider: str, api_base: str, api_key: str, model: str) -> dict[str, Any]:
+def test_api_connectivity(
+    provider: str,
+    api_base: str,
+    api_key: str,
+    model: str,
+    azure_api_version: str,
+) -> dict[str, Any]:
     prompt = "Reply exactly with JSON: {\"pong\": true}"
     resp = call_vlm(
         provider=provider,
@@ -672,6 +713,7 @@ def test_api_connectivity(provider: str, api_base: str, api_key: str, model: str
         model=model,
         prompt=prompt,
         image_path=None,
+        azure_api_version=azure_api_version,
     )
     out = {"ok": False, "provider": provider, "api_base": api_base, "model": model}
     if "_error" in resp:
@@ -689,7 +731,12 @@ def test_api_connectivity(provider: str, api_base: str, api_key: str, model: str
 def run(args: argparse.Namespace) -> int:
     api_key = args.api_key
     if not api_key:
-        env_name = "ARK_API_KEY" if args.provider == "ark" else "VLM_API_KEY"
+        if args.provider == "ark":
+            env_name = "ARK_API_KEY"
+        elif args.provider == "azure":
+            env_name = "AZURE_API_KEY"
+        else:
+            env_name = "VLM_API_KEY"
         api_key = os.environ.get(env_name)
     output_dir = args.output_dir.expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -698,7 +745,13 @@ def run(args: argparse.Namespace) -> int:
         if not api_key:
             print("error: api key is required for --test-api", file=sys.stderr)
             return 2
-        result = test_api_connectivity(args.provider, args.api_base, api_key, args.model)
+        result = test_api_connectivity(
+            args.provider,
+            args.api_base,
+            api_key,
+            args.model,
+            args.azure_api_version,
+        )
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0 if result.get("ok") else 1
 
@@ -715,6 +768,7 @@ def run(args: argparse.Namespace) -> int:
             api_base=args.api_base,
             api_key=api_key,
             model=args.model,
+            azure_api_version=args.azure_api_version,
             dry_run=args.dry_run,
         )
         reports.append(report)
@@ -726,6 +780,7 @@ def run(args: argparse.Namespace) -> int:
         "provider": args.provider,
         "api_base": args.api_base,
         "model": args.model,
+        "azure_api_version": args.azure_api_version if args.provider == "azure" else None,
         "num_datasets": len(reports),
         "reports": reports,
     }
@@ -742,13 +797,18 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("path", type=Path, help="One *.zarr path or a directory containing *.zarr")
     p.add_argument("-o", "--output-dir", type=Path, default=Path.cwd() / "vlm_check_output")
     p.add_argument("--pattern", default="*.zarr")
-    p.add_argument("--provider", choices=["ark", "openai"], default="ark")
+    p.add_argument("--provider", choices=["ark", "openai", "azure"], default="ark")
     p.add_argument("--api-base", default="https://ark.cn-beijing.volces.com/api/v3")
     p.add_argument("--model", default="doubao-seed-2-1-pro-260628")
     p.add_argument(
+        "--azure-api-version",
+        default="2025-03-01-preview",
+        help="Used only when provider=azure (Responses API requires 2025-03-01-preview or later).",
+    )
+    p.add_argument(
         "--api-key",
         default=None,
-        help="API key; defaults to env ARK_API_KEY (provider=ark) or VLM_API_KEY (provider=openai)",
+        help="API key; defaults to ARK_API_KEY (ark), AZURE_API_KEY (azure), or VLM_API_KEY (openai).",
     )
     p.add_argument("--max-uniform-samples", type=int, default=12)
     p.add_argument("--max-event-samples", type=int, default=12)
