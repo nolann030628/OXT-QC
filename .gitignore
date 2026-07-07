@@ -6,3 +6,4 @@ reports/
 data/raw/
 !data/raw/.gitkeep
 FTP1_data_example/
+oxt_check_output/
