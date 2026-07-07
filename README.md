@@ -22,7 +22,15 @@
 - `data/`：本地测试数据目录
 - `tests/`：测试代码
 
-## 环境准备
+## 环境准备（推荐 conda）
+
+```bash
+conda create -n oxt-qc python=3.11 -y
+conda activate oxt-qc
+pip install zarr numpy pillow matplotlib imageio "volcengine-python-sdk[ark]"
+```
+
+如果你不使用 conda，也可以继续用 `venv`：
 
 ```bash
 python3 -m venv .venv
