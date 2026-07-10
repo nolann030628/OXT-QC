@@ -1,0 +1,1176 @@
+{
+  "tool": "precheck_vlm",
+  "provider": "azure",
+  "api_base": "https://gaoya-mk3ncmmi-eastus2.cognitiveservices.azure.com/",
+  "model": "gpt-5.4",
+  "azure_api_version": "2025-03-01-preview",
+  "num_datasets": 1,
+  "reports": [
+    {
+      "dataset": "robot_se+put_bread_to_the_red_pad+.zarr",
+      "path": "D:\\000-TsinghuaUniversity\\project\\202607_ftp_x\\OXT-QC\\FTP1_data_example\\MotionTrans\\robot_se+put_bread_to_the_red_pad+.zarr",
+      "status": "ok",
+      "selected_rgb_key": "camera_ego_rgb",
+      "selected_tactile_key": "right_tactile_data_fingertorque",
+      "num_frames": 7962,
+      "sampling": {
+        "strategy": "uniform + top_tactile_change",
+        "max_uniform_samples": 40,
+        "max_event_samples": 40,
+        "max_frames_for_vlm": 80,
+        "max_frames_for_energy": 20000,
+        "frames_per_montage": 16,
+        "max_montage_pages": 5,
+        "indices": [
+          0,
+          113,
+          204,
+          383,
+          408,
+          509,
+          528,
+          612,
+          816,
+          986,
+          987,
+          988,
+          1020,
+          1224,
+          1428,
+          1470,
+          1633,
+          1771,
+          1837,
+          1929,
+          1947,
+          1948,
+          2041,
+          2245,
+          2380,
+          2387,
+          2449,
+          2653,
+          2698,
+          2857,
+          2876,
+          2877,
+          2878,
+          3061,
+          3266,
+          3470,
+          3656,
+          3674,
+          3878,
+          3915,
+          3916,
+          4082,
+          4231,
+          4232,
+          4248,
+          4249,
+          4286,
+          4490,
+          4694,
+          4868,
+          4899,
+          5103,
+          5307,
+          5345,
+          5346,
+          5493,
+          5503,
+          5511,
+          5715,
+          5919,
+          5970,
+          5971,
+          6123,
+          6327,
+          6450,
+          6451,
+          6452,
+          6532,
+          6630,
+          6631,
+          6736,
+          6940,
+          7144,
+          7348,
+          7371,
+          7552,
+          7710,
+          7712,
+          7756,
+          7961
+        ],
+        "uniform": [
+          0,
+          204,
+          408,
+          612,
+          816,
+          1020,
+          1224,
+          1428,
+          1633,
+          1837,
+          2041,
+          2245,
+          2449,
+          2653,
+          2857,
+          3061,
+          3266,
+          3470,
+          3674,
+          3878,
+          4082,
+          4286,
+          4490,
+          4694,
+          4899,
+          5103,
+          5307,
+          5511,
+          5715,
+          5919,
+          6123,
+          6327,
+          6532,
+          6736,
+          6940,
+          7144,
+          7348,
+          7552,
+          7756,
+          7961
+        ],
+        "events": [
+          113,
+          383,
+          509,
+          528,
+          986,
+          987,
+          988,
+          1470,
+          1771,
+          1929,
+          1947,
+          1948,
+          2380,
+          2387,
+          2698,
+          2876,
+          2877,
+          2878,
+          3656,
+          3915,
+          3916,
+          4231,
+          4232,
+          4248,
+          4249,
+          4868,
+          5345,
+          5346,
+          5493,
+          5503,
+          5970,
+          5971,
+          6450,
+          6451,
+          6452,
+          6630,
+          6631,
+          7371,
+          7710,
+          7712
+        ],
+        "num_energy_frames_used": 7962,
+        "energy_downsampled": false
+      },
+      "tactile_type_raw": [
+        "state"
+      ],
+      "tactile_type_normalized": [
+        "state"
+      ],
+      "tactile_render_kind": "state",
+      "tactile_render_range": {
+        "vmin": -41.15591812133789,
+        "vmax": 498.4981994628906
+      },
+      "instruction_samples": [
+        "Grab the bread and place it on the red circular area of the table.",
+        "Grab the bread and position it on top of the red circle.",
+        "Grab the bread and set it down in the middle of the red pad."
+      ],
+      "heuristic_signal_summary": {
+        "ok": true,
+        "dead_step_ratio": 0.21366662479587992,
+        "dynamic_range_p95_p5": 220.09662780761715,
+        "min": 41.35176467895508,
+        "max": 582.988037109375,
+        "mean": 106.19270126018893
+      },
+      "artifacts": {
+        "montage_pngs": [
+          "D:\\000-TsinghuaUniversity\\project\\202607_ftp_x\\OXT-QC\\oxt_check_output\\robot_se+put_bread_to_the_red_pad+\\vlm_montage_01.png",
+          "D:\\000-TsinghuaUniversity\\project\\202607_ftp_x\\OXT-QC\\oxt_check_output\\robot_se+put_bread_to_the_red_pad+\\vlm_montage_02.png",
+          "D:\\000-TsinghuaUniversity\\project\\202607_ftp_x\\OXT-QC\\oxt_check_output\\robot_se+put_bread_to_the_red_pad+\\vlm_montage_03.png",
+          "D:\\000-TsinghuaUniversity\\project\\202607_ftp_x\\OXT-QC\\oxt_check_output\\robot_se+put_bread_to_the_red_pad+\\vlm_montage_04.png",
+          "D:\\000-TsinghuaUniversity\\project\\202607_ftp_x\\OXT-QC\\oxt_check_output\\robot_se+put_bread_to_the_red_pad+\\vlm_montage_05.png"
+        ]
+      },
+      "vlm_review": {
+        "final_status": "warning",
+        "needs_human_review": true,
+        "issues": [
+          "minor RGB-tactile timing offset around contact transitions",
+          "contact weak or absent in a few frames during repositioning",
+          "object placement on red target not fully completed within shown sequence",
+          "minor frame-to-frame variation in contact intensity",
+          "some snapshots show weak/no-contact states while object remains nearby",
+          "placement appears adjacent to red circle in a few frames rather than clearly centered",
+          "minor RGB-tactile timing offset across a few frames",
+          "contact strength varies during approach/release phases",
+          "some frames show low tactile activity when object is near but not clearly grasped",
+          "minor frame-to-frame tactile intensity variation",
+          "brief low-contact intervals in a few snapshots",
+          "possible slight RGB-tactile timing offset in isolated frames",
+          "minor RGB-tactile timing offset in a few frames",
+          "one frame shows weak tactile response despite visible proximity/contact uncertainty",
+          "late frames show prolonged high tactile energy plateau that may indicate sustained hold or slight sensor saturation"
+        ],
+        "num_pages": 5,
+        "sync_score": 0.882,
+        "contact_consistency_score": 0.866,
+        "signal_health_score": 0.8880000000000001,
+        "instruction_consistency_score": 0.9339999999999999
+      },
+      "vlm_review_pages": [
+        {
+          "page_index": 1,
+          "indices": [
+            0,
+            113,
+            204,
+            383,
+            408,
+            509,
+            528,
+            612,
+            816,
+            986,
+            987,
+            988,
+            1020,
+            1224,
+            1428,
+            1470
+          ],
+          "artifacts": {
+            "montage_png": "D:\\000-TsinghuaUniversity\\project\\202607_ftp_x\\OXT-QC\\oxt_check_output\\robot_se+put_bread_to_the_red_pad+\\vlm_montage_01.png"
+          },
+          "prompt": "You are reviewing aligned RGB+tactile snapshots from a robotics dataset.\nReturn STRICT JSON only with keys:\nsync_score(0-1), contact_consistency_score(0-1), signal_health_score(0-1), instruction_consistency_score(0-1), issues(array of short strings), final_status(one of: pass, warning, fail), needs_human_review(boolean).\nKnown tactile type labels: ['state'].\nTreat tactile labels 'array' and 'matrix' as equivalent 2D tactile map formats; do not report array/matrix wording differences as an issue.\nInstruction samples: ['Grab the bread and place it on the red circular area of the table.', 'Grab the bread and position it on top of the red circle.', 'Grab the bread and set it down in the middle of the red pad.'].\nTactile panel rendering rule:\n- if type=state: top half are per-channel bars, bottom half is local energy curve.\n- if type=array/matrix: channel maps are tiled while preserving channel 2D structure.\n- if type=image: raw tactile images are tiled directly; CHW images are converted to HWC RGB before display.\n- fixed tactile normalization range for this dataset: [-41.1559, 498.498].\nFocus on: RGB-tactile rough synchronization, broken contact patterns, abnormal signal stability, and instruction/action consistency.\n[IMG]",
+          "response_text": "{\"sync_score\":0.86,\"contact_consistency_score\":0.83,\"signal_health_score\":0.88,\"instruction_consistency_score\":0.91,\"issues\":[\"minor RGB-tactile timing offset around contact transitions\",\"contact weak or absent in a few frames during repositioning\",\"object placement on red target not fully completed within shown sequence\"],\"final_status\":\"warning\",\"needs_human_review\":false}",
+          "response_raw": {
+            "id": "resp_09050f4b4fd706c2006a50faff9fe481909078b29d48a30e0d",
+            "created_at": 1783692031.0,
+            "error": null,
+            "incomplete_details": null,
+            "instructions": null,
+            "metadata": {},
+            "model": "gpt-5.4",
+            "object": "response",
+            "output": [
+              {
+                "id": "msg_09050f4b4fd706c2006a50fb00c82c81908d72ba079e22a379",
+                "content": [
+                  {
+                    "annotations": [],
+                    "text": "{\"sync_score\":0.86,\"contact_consistency_score\":0.83,\"signal_health_score\":0.88,\"instruction_consistency_score\":0.91,\"issues\":[\"minor RGB-tactile timing offset around contact transitions\",\"contact weak or absent in a few frames during repositioning\",\"object placement on red target not fully completed within shown sequence\"],\"final_status\":\"warning\",\"needs_human_review\":false}",
+                    "type": "output_text",
+                    "logprobs": []
+                  }
+                ],
+                "role": "assistant",
+                "status": "completed",
+                "type": "message",
+                "phase": "final_answer"
+              }
+            ],
+            "parallel_tool_calls": true,
+            "temperature": 1.0,
+            "tool_choice": "auto",
+            "tools": [],
+            "top_p": 0.98,
+            "background": false,
+            "conversation": null,
+            "max_output_tokens": null,
+            "max_tool_calls": null,
+            "previous_response_id": null,
+            "prompt": null,
+            "prompt_cache_key": null,
+            "prompt_cache_retention": "in_memory",
+            "reasoning": {
+              "effort": "none",
+              "generate_summary": null,
+              "summary": null,
+              "context": "current_turn",
+              "mode": "standard"
+            },
+            "safety_identifier": null,
+            "service_tier": "default",
+            "status": "completed",
+            "text": {
+              "format": {
+                "type": "text"
+              },
+              "verbosity": "medium"
+            },
+            "top_logprobs": 0,
+            "truncation": "disabled",
+            "usage": {
+              "input_tokens": 1670,
+              "input_tokens_details": {
+                "cached_tokens": 0
+              },
+              "output_tokens": 88,
+              "output_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "total_tokens": 1758
+            },
+            "user": null,
+            "completed_at": 1783692034,
+            "content_filters": [
+              {
+                "blocked": false,
+                "source_type": "prompt",
+                "content_filter_raw": [],
+                "content_filter_results": {
+                  "hate": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "sexual": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "violence": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "self_harm": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "jailbreak": {
+                    "detected": false,
+                    "filtered": false
+                  }
+                },
+                "content_filter_offsets": {
+                  "start_offset": 0,
+                  "end_offset": 2095,
+                  "check_offset": 0
+                }
+              },
+              {
+                "blocked": false,
+                "source_type": "completion",
+                "content_filter_raw": [],
+                "content_filter_results": {
+                  "protected_material_code": {
+                    "detected": false,
+                    "filtered": false
+                  },
+                  "protected_material_text": {
+                    "detected": false,
+                    "filtered": false
+                  },
+                  "hate": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "sexual": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "violence": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "self_harm": {
+                    "filtered": false,
+                    "severity": "safe"
+                  }
+                },
+                "content_filter_offsets": {
+                  "start_offset": 0,
+                  "end_offset": 377,
+                  "check_offset": 0
+                }
+              }
+            ],
+            "frequency_penalty": 0.0,
+            "moderation": null,
+            "presence_penalty": 0.0,
+            "store": true
+          },
+          "vlm_review": {
+            "sync_score": 0.86,
+            "contact_consistency_score": 0.83,
+            "signal_health_score": 0.88,
+            "instruction_consistency_score": 0.91,
+            "issues": [
+              "minor RGB-tactile timing offset around contact transitions",
+              "contact weak or absent in a few frames during repositioning",
+              "object placement on red target not fully completed within shown sequence"
+            ],
+            "final_status": "warning",
+            "needs_human_review": false
+          }
+        },
+        {
+          "page_index": 2,
+          "indices": [
+            1633,
+            1771,
+            1837,
+            1929,
+            1947,
+            1948,
+            2041,
+            2245,
+            2380,
+            2387,
+            2449,
+            2653,
+            2698,
+            2857,
+            2876,
+            2877
+          ],
+          "artifacts": {
+            "montage_png": "D:\\000-TsinghuaUniversity\\project\\202607_ftp_x\\OXT-QC\\oxt_check_output\\robot_se+put_bread_to_the_red_pad+\\vlm_montage_02.png"
+          },
+          "prompt": "You are reviewing aligned RGB+tactile snapshots from a robotics dataset.\nReturn STRICT JSON only with keys:\nsync_score(0-1), contact_consistency_score(0-1), signal_health_score(0-1), instruction_consistency_score(0-1), issues(array of short strings), final_status(one of: pass, warning, fail), needs_human_review(boolean).\nKnown tactile type labels: ['state'].\nTreat tactile labels 'array' and 'matrix' as equivalent 2D tactile map formats; do not report array/matrix wording differences as an issue.\nInstruction samples: ['Grab the bread and place it on the red circular area of the table.', 'Grab the bread and position it on top of the red circle.', 'Grab the bread and set it down in the middle of the red pad.'].\nTactile panel rendering rule:\n- if type=state: top half are per-channel bars, bottom half is local energy curve.\n- if type=array/matrix: channel maps are tiled while preserving channel 2D structure.\n- if type=image: raw tactile images are tiled directly; CHW images are converted to HWC RGB before display.\n- fixed tactile normalization range for this dataset: [-41.1559, 498.498].\nFocus on: RGB-tactile rough synchronization, broken contact patterns, abnormal signal stability, and instruction/action consistency.\n[IMG]",
+          "response_text": "{\"sync_score\":0.9,\"contact_consistency_score\":0.88,\"signal_health_score\":0.91,\"instruction_consistency_score\":0.94,\"issues\":[\"minor frame-to-frame variation in contact intensity\",\"some snapshots show weak/no-contact states while object remains nearby\",\"placement appears adjacent to red circle in a few frames rather than clearly centered\"],\"final_status\":\"warning\",\"needs_human_review\":false}",
+          "response_raw": {
+            "id": "resp_0b73bc93a1f03d70006a50fb0775f48196b637fde06f44160e",
+            "created_at": 1783692039.0,
+            "error": null,
+            "incomplete_details": null,
+            "instructions": null,
+            "metadata": {},
+            "model": "gpt-5.4",
+            "object": "response",
+            "output": [
+              {
+                "id": "msg_0b73bc93a1f03d70006a50fb09c5c081968d01e6527ba85bab",
+                "content": [
+                  {
+                    "annotations": [],
+                    "text": "{\"sync_score\":0.9,\"contact_consistency_score\":0.88,\"signal_health_score\":0.91,\"instruction_consistency_score\":0.94,\"issues\":[\"minor frame-to-frame variation in contact intensity\",\"some snapshots show weak/no-contact states while object remains nearby\",\"placement appears adjacent to red circle in a few frames rather than clearly centered\"],\"final_status\":\"warning\",\"needs_human_review\":false}",
+                    "type": "output_text",
+                    "logprobs": []
+                  }
+                ],
+                "role": "assistant",
+                "status": "completed",
+                "type": "message",
+                "phase": "final_answer"
+              }
+            ],
+            "parallel_tool_calls": true,
+            "temperature": 1.0,
+            "tool_choice": "auto",
+            "tools": [],
+            "top_p": 0.98,
+            "background": false,
+            "conversation": null,
+            "max_output_tokens": null,
+            "max_tool_calls": null,
+            "previous_response_id": null,
+            "prompt": null,
+            "prompt_cache_key": null,
+            "prompt_cache_retention": "in_memory",
+            "reasoning": {
+              "effort": "none",
+              "generate_summary": null,
+              "summary": null,
+              "context": "current_turn",
+              "mode": "standard"
+            },
+            "safety_identifier": null,
+            "service_tier": "default",
+            "status": "completed",
+            "text": {
+              "format": {
+                "type": "text"
+              },
+              "verbosity": "medium"
+            },
+            "top_logprobs": 0,
+            "truncation": "disabled",
+            "usage": {
+              "input_tokens": 1670,
+              "input_tokens_details": {
+                "cached_tokens": 0
+              },
+              "output_tokens": 89,
+              "output_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "total_tokens": 1759
+            },
+            "user": null,
+            "completed_at": 1783692043,
+            "content_filters": [
+              {
+                "blocked": false,
+                "source_type": "prompt",
+                "content_filter_raw": [],
+                "content_filter_results": {
+                  "hate": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "sexual": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "violence": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "self_harm": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "jailbreak": {
+                    "detected": false,
+                    "filtered": false
+                  }
+                },
+                "content_filter_offsets": {
+                  "start_offset": 0,
+                  "end_offset": 2095,
+                  "check_offset": 0
+                }
+              },
+              {
+                "blocked": false,
+                "source_type": "completion",
+                "content_filter_raw": [],
+                "content_filter_results": {
+                  "protected_material_code": {
+                    "detected": false,
+                    "filtered": false
+                  },
+                  "protected_material_text": {
+                    "detected": false,
+                    "filtered": false
+                  },
+                  "hate": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "sexual": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "violence": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "self_harm": {
+                    "filtered": false,
+                    "severity": "safe"
+                  }
+                },
+                "content_filter_offsets": {
+                  "start_offset": 0,
+                  "end_offset": 393,
+                  "check_offset": 0
+                }
+              }
+            ],
+            "frequency_penalty": 0.0,
+            "moderation": null,
+            "presence_penalty": 0.0,
+            "store": true
+          },
+          "vlm_review": {
+            "sync_score": 0.9,
+            "contact_consistency_score": 0.88,
+            "signal_health_score": 0.91,
+            "instruction_consistency_score": 0.94,
+            "issues": [
+              "minor frame-to-frame variation in contact intensity",
+              "some snapshots show weak/no-contact states while object remains nearby",
+              "placement appears adjacent to red circle in a few frames rather than clearly centered"
+            ],
+            "final_status": "warning",
+            "needs_human_review": false
+          }
+        },
+        {
+          "page_index": 3,
+          "indices": [
+            2878,
+            3061,
+            3266,
+            3470,
+            3656,
+            3674,
+            3878,
+            3915,
+            3916,
+            4082,
+            4231,
+            4232,
+            4248,
+            4249,
+            4286,
+            4490
+          ],
+          "artifacts": {
+            "montage_png": "D:\\000-TsinghuaUniversity\\project\\202607_ftp_x\\OXT-QC\\oxt_check_output\\robot_se+put_bread_to_the_red_pad+\\vlm_montage_03.png"
+          },
+          "prompt": "You are reviewing aligned RGB+tactile snapshots from a robotics dataset.\nReturn STRICT JSON only with keys:\nsync_score(0-1), contact_consistency_score(0-1), signal_health_score(0-1), instruction_consistency_score(0-1), issues(array of short strings), final_status(one of: pass, warning, fail), needs_human_review(boolean).\nKnown tactile type labels: ['state'].\nTreat tactile labels 'array' and 'matrix' as equivalent 2D tactile map formats; do not report array/matrix wording differences as an issue.\nInstruction samples: ['Grab the bread and place it on the red circular area of the table.', 'Grab the bread and position it on top of the red circle.', 'Grab the bread and set it down in the middle of the red pad.'].\nTactile panel rendering rule:\n- if type=state: top half are per-channel bars, bottom half is local energy curve.\n- if type=array/matrix: channel maps are tiled while preserving channel 2D structure.\n- if type=image: raw tactile images are tiled directly; CHW images are converted to HWC RGB before display.\n- fixed tactile normalization range for this dataset: [-41.1559, 498.498].\nFocus on: RGB-tactile rough synchronization, broken contact patterns, abnormal signal stability, and instruction/action consistency.\n[IMG]",
+          "response_text": "{\"sync_score\":0.86,\"contact_consistency_score\":0.84,\"signal_health_score\":0.9,\"instruction_consistency_score\":0.93,\"issues\":[\"minor RGB-tactile timing offset across a few frames\",\"contact strength varies during approach/release phases\",\"some frames show low tactile activity when object is near but not clearly grasped\"],\"final_status\":\"warning\",\"needs_human_review\":false}",
+          "response_raw": {
+            "id": "resp_025db50cc151cbe0006a50fb1082888193921541e9ae118f23",
+            "created_at": 1783692048.0,
+            "error": null,
+            "incomplete_details": null,
+            "instructions": null,
+            "metadata": {},
+            "model": "gpt-5.4",
+            "object": "response",
+            "output": [
+              {
+                "id": "msg_025db50cc151cbe0006a50fb11850881938f6ffeed83937b44",
+                "content": [
+                  {
+                    "annotations": [],
+                    "text": "{\"sync_score\":0.86,\"contact_consistency_score\":0.84,\"signal_health_score\":0.9,\"instruction_consistency_score\":0.93,\"issues\":[\"minor RGB-tactile timing offset across a few frames\",\"contact strength varies during approach/release phases\",\"some frames show low tactile activity when object is near but not clearly grasped\"],\"final_status\":\"warning\",\"needs_human_review\":false}",
+                    "type": "output_text",
+                    "logprobs": []
+                  }
+                ],
+                "role": "assistant",
+                "status": "completed",
+                "type": "message",
+                "phase": "final_answer"
+              }
+            ],
+            "parallel_tool_calls": true,
+            "temperature": 1.0,
+            "tool_choice": "auto",
+            "tools": [],
+            "top_p": 0.98,
+            "background": false,
+            "conversation": null,
+            "max_output_tokens": null,
+            "max_tool_calls": null,
+            "previous_response_id": null,
+            "prompt": null,
+            "prompt_cache_key": null,
+            "prompt_cache_retention": "in_memory",
+            "reasoning": {
+              "effort": "none",
+              "generate_summary": null,
+              "summary": null,
+              "context": "current_turn",
+              "mode": "standard"
+            },
+            "safety_identifier": null,
+            "service_tier": "default",
+            "status": "completed",
+            "text": {
+              "format": {
+                "type": "text"
+              },
+              "verbosity": "medium"
+            },
+            "top_logprobs": 0,
+            "truncation": "disabled",
+            "usage": {
+              "input_tokens": 1670,
+              "input_tokens_details": {
+                "cached_tokens": 0
+              },
+              "output_tokens": 90,
+              "output_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "total_tokens": 1760
+            },
+            "user": null,
+            "completed_at": 1783692050,
+            "content_filters": [
+              {
+                "blocked": false,
+                "source_type": "prompt",
+                "content_filter_raw": [],
+                "content_filter_results": {
+                  "hate": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "sexual": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "violence": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "self_harm": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "jailbreak": {
+                    "detected": false,
+                    "filtered": false
+                  }
+                },
+                "content_filter_offsets": {
+                  "start_offset": 0,
+                  "end_offset": 2095,
+                  "check_offset": 0
+                }
+              },
+              {
+                "blocked": false,
+                "source_type": "completion",
+                "content_filter_raw": [],
+                "content_filter_results": {
+                  "protected_material_code": {
+                    "detected": false,
+                    "filtered": false
+                  },
+                  "protected_material_text": {
+                    "detected": false,
+                    "filtered": false
+                  },
+                  "hate": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "sexual": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "violence": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "self_harm": {
+                    "filtered": false,
+                    "severity": "safe"
+                  }
+                },
+                "content_filter_offsets": {
+                  "start_offset": 0,
+                  "end_offset": 373,
+                  "check_offset": 0
+                }
+              }
+            ],
+            "frequency_penalty": 0.0,
+            "moderation": null,
+            "presence_penalty": 0.0,
+            "store": true
+          },
+          "vlm_review": {
+            "sync_score": 0.86,
+            "contact_consistency_score": 0.84,
+            "signal_health_score": 0.9,
+            "instruction_consistency_score": 0.93,
+            "issues": [
+              "minor RGB-tactile timing offset across a few frames",
+              "contact strength varies during approach/release phases",
+              "some frames show low tactile activity when object is near but not clearly grasped"
+            ],
+            "final_status": "warning",
+            "needs_human_review": false
+          }
+        },
+        {
+          "page_index": 4,
+          "indices": [
+            4694,
+            4868,
+            4899,
+            5103,
+            5307,
+            5345,
+            5346,
+            5493,
+            5503,
+            5511,
+            5715,
+            5919,
+            5970,
+            5971,
+            6123,
+            6327
+          ],
+          "artifacts": {
+            "montage_png": "D:\\000-TsinghuaUniversity\\project\\202607_ftp_x\\OXT-QC\\oxt_check_output\\robot_se+put_bread_to_the_red_pad+\\vlm_montage_04.png"
+          },
+          "prompt": "You are reviewing aligned RGB+tactile snapshots from a robotics dataset.\nReturn STRICT JSON only with keys:\nsync_score(0-1), contact_consistency_score(0-1), signal_health_score(0-1), instruction_consistency_score(0-1), issues(array of short strings), final_status(one of: pass, warning, fail), needs_human_review(boolean).\nKnown tactile type labels: ['state'].\nTreat tactile labels 'array' and 'matrix' as equivalent 2D tactile map formats; do not report array/matrix wording differences as an issue.\nInstruction samples: ['Grab the bread and place it on the red circular area of the table.', 'Grab the bread and position it on top of the red circle.', 'Grab the bread and set it down in the middle of the red pad.'].\nTactile panel rendering rule:\n- if type=state: top half are per-channel bars, bottom half is local energy curve.\n- if type=array/matrix: channel maps are tiled while preserving channel 2D structure.\n- if type=image: raw tactile images are tiled directly; CHW images are converted to HWC RGB before display.\n- fixed tactile normalization range for this dataset: [-41.1559, 498.498].\nFocus on: RGB-tactile rough synchronization, broken contact patterns, abnormal signal stability, and instruction/action consistency.\n[IMG]",
+          "response_text": "{\"sync_score\":0.91,\"contact_consistency_score\":0.88,\"signal_health_score\":0.89,\"instruction_consistency_score\":0.95,\"issues\":[\"minor frame-to-frame tactile intensity variation\",\"brief low-contact intervals in a few snapshots\",\"possible slight RGB-tactile timing offset in isolated frames\"],\"final_status\":\"warning\",\"needs_human_review\":false}",
+          "response_raw": {
+            "id": "resp_07357b4174ea58eb006a50fb1749d48195a626ad753c146473",
+            "created_at": 1783692055.0,
+            "error": null,
+            "incomplete_details": null,
+            "instructions": null,
+            "metadata": {},
+            "model": "gpt-5.4",
+            "object": "response",
+            "output": [
+              {
+                "id": "msg_07357b4174ea58eb006a50fb1866948195a0b1cbd3afe24e56",
+                "content": [
+                  {
+                    "annotations": [],
+                    "text": "{\"sync_score\":0.91,\"contact_consistency_score\":0.88,\"signal_health_score\":0.89,\"instruction_consistency_score\":0.95,\"issues\":[\"minor frame-to-frame tactile intensity variation\",\"brief low-contact intervals in a few snapshots\",\"possible slight RGB-tactile timing offset in isolated frames\"],\"final_status\":\"warning\",\"needs_human_review\":false}",
+                    "type": "output_text",
+                    "logprobs": []
+                  }
+                ],
+                "role": "assistant",
+                "status": "completed",
+                "type": "message",
+                "phase": "final_answer"
+              }
+            ],
+            "parallel_tool_calls": true,
+            "temperature": 1.0,
+            "tool_choice": "auto",
+            "tools": [],
+            "top_p": 0.98,
+            "background": false,
+            "conversation": null,
+            "max_output_tokens": null,
+            "max_tool_calls": null,
+            "previous_response_id": null,
+            "prompt": null,
+            "prompt_cache_key": null,
+            "prompt_cache_retention": "in_memory",
+            "reasoning": {
+              "effort": "none",
+              "generate_summary": null,
+              "summary": null,
+              "context": "current_turn",
+              "mode": "standard"
+            },
+            "safety_identifier": null,
+            "service_tier": "default",
+            "status": "completed",
+            "text": {
+              "format": {
+                "type": "text"
+              },
+              "verbosity": "medium"
+            },
+            "top_logprobs": 0,
+            "truncation": "disabled",
+            "usage": {
+              "input_tokens": 1670,
+              "input_tokens_details": {
+                "cached_tokens": 0
+              },
+              "output_tokens": 82,
+              "output_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "total_tokens": 1752
+            },
+            "user": null,
+            "completed_at": 1783692057,
+            "content_filters": [
+              {
+                "blocked": false,
+                "source_type": "prompt",
+                "content_filter_raw": [],
+                "content_filter_results": {
+                  "hate": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "sexual": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "violence": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "self_harm": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "jailbreak": {
+                    "detected": false,
+                    "filtered": false
+                  }
+                },
+                "content_filter_offsets": {
+                  "start_offset": 0,
+                  "end_offset": 2095,
+                  "check_offset": 0
+                }
+              },
+              {
+                "blocked": false,
+                "source_type": "completion",
+                "content_filter_raw": [],
+                "content_filter_results": {
+                  "protected_material_code": {
+                    "detected": false,
+                    "filtered": false
+                  },
+                  "protected_material_text": {
+                    "detected": false,
+                    "filtered": false
+                  },
+                  "hate": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "sexual": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "violence": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "self_harm": {
+                    "filtered": false,
+                    "severity": "safe"
+                  }
+                },
+                "content_filter_offsets": {
+                  "start_offset": 0,
+                  "end_offset": 342,
+                  "check_offset": 0
+                }
+              }
+            ],
+            "frequency_penalty": 0.0,
+            "moderation": null,
+            "presence_penalty": 0.0,
+            "store": true
+          },
+          "vlm_review": {
+            "sync_score": 0.91,
+            "contact_consistency_score": 0.88,
+            "signal_health_score": 0.89,
+            "instruction_consistency_score": 0.95,
+            "issues": [
+              "minor frame-to-frame tactile intensity variation",
+              "brief low-contact intervals in a few snapshots",
+              "possible slight RGB-tactile timing offset in isolated frames"
+            ],
+            "final_status": "warning",
+            "needs_human_review": false
+          }
+        },
+        {
+          "page_index": 5,
+          "indices": [
+            6450,
+            6451,
+            6452,
+            6532,
+            6630,
+            6631,
+            6736,
+            6940,
+            7144,
+            7348,
+            7371,
+            7552,
+            7710,
+            7712,
+            7756,
+            7961
+          ],
+          "artifacts": {
+            "montage_png": "D:\\000-TsinghuaUniversity\\project\\202607_ftp_x\\OXT-QC\\oxt_check_output\\robot_se+put_bread_to_the_red_pad+\\vlm_montage_05.png"
+          },
+          "prompt": "You are reviewing aligned RGB+tactile snapshots from a robotics dataset.\nReturn STRICT JSON only with keys:\nsync_score(0-1), contact_consistency_score(0-1), signal_health_score(0-1), instruction_consistency_score(0-1), issues(array of short strings), final_status(one of: pass, warning, fail), needs_human_review(boolean).\nKnown tactile type labels: ['state'].\nTreat tactile labels 'array' and 'matrix' as equivalent 2D tactile map formats; do not report array/matrix wording differences as an issue.\nInstruction samples: ['Grab the bread and place it on the red circular area of the table.', 'Grab the bread and position it on top of the red circle.', 'Grab the bread and set it down in the middle of the red pad.'].\nTactile panel rendering rule:\n- if type=state: top half are per-channel bars, bottom half is local energy curve.\n- if type=array/matrix: channel maps are tiled while preserving channel 2D structure.\n- if type=image: raw tactile images are tiled directly; CHW images are converted to HWC RGB before display.\n- fixed tactile normalization range for this dataset: [-41.1559, 498.498].\nFocus on: RGB-tactile rough synchronization, broken contact patterns, abnormal signal stability, and instruction/action consistency.\n[IMG]",
+          "response_text": "{\"sync_score\":0.88,\"contact_consistency_score\":0.9,\"signal_health_score\":0.86,\"instruction_consistency_score\":0.94,\"issues\":[\"minor RGB-tactile timing offset in a few frames\",\"one frame shows weak tactile response despite visible proximity/contact uncertainty\",\"late frames show prolonged high tactile energy plateau that may indicate sustained hold or slight sensor saturation\"],\"final_status\":\"warning\",\"needs_human_review\":true}",
+          "response_raw": {
+            "id": "resp_09f6080eef55a78f006a50fb1eeef481938f7f669c2d6ab3a2",
+            "created_at": 1783692062.0,
+            "error": null,
+            "incomplete_details": null,
+            "instructions": null,
+            "metadata": {},
+            "model": "gpt-5.4",
+            "object": "response",
+            "output": [
+              {
+                "id": "msg_09f6080eef55a78f006a50fb200840819388b848abdeb81f15",
+                "content": [
+                  {
+                    "annotations": [],
+                    "text": "{\"sync_score\":0.88,\"contact_consistency_score\":0.9,\"signal_health_score\":0.86,\"instruction_consistency_score\":0.94,\"issues\":[\"minor RGB-tactile timing offset in a few frames\",\"one frame shows weak tactile response despite visible proximity/contact uncertainty\",\"late frames show prolonged high tactile energy plateau that may indicate sustained hold or slight sensor saturation\"],\"final_status\":\"warning\",\"needs_human_review\":true}",
+                    "type": "output_text",
+                    "logprobs": []
+                  }
+                ],
+                "role": "assistant",
+                "status": "completed",
+                "type": "message",
+                "phase": "final_answer"
+              }
+            ],
+            "parallel_tool_calls": true,
+            "temperature": 1.0,
+            "tool_choice": "auto",
+            "tools": [],
+            "top_p": 0.98,
+            "background": false,
+            "conversation": null,
+            "max_output_tokens": null,
+            "max_tool_calls": null,
+            "previous_response_id": null,
+            "prompt": null,
+            "prompt_cache_key": null,
+            "prompt_cache_retention": "in_memory",
+            "reasoning": {
+              "effort": "none",
+              "generate_summary": null,
+              "summary": null,
+              "context": "current_turn",
+              "mode": "standard"
+            },
+            "safety_identifier": null,
+            "service_tier": "default",
+            "status": "completed",
+            "text": {
+              "format": {
+                "type": "text"
+              },
+              "verbosity": "medium"
+            },
+            "top_logprobs": 0,
+            "truncation": "disabled",
+            "usage": {
+              "input_tokens": 1670,
+              "input_tokens_details": {
+                "cached_tokens": 0
+              },
+              "output_tokens": 95,
+              "output_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "total_tokens": 1765
+            },
+            "user": null,
+            "completed_at": 1783692065,
+            "content_filters": [
+              {
+                "blocked": false,
+                "source_type": "prompt",
+                "content_filter_raw": [],
+                "content_filter_results": {
+                  "hate": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "sexual": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "violence": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "self_harm": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "jailbreak": {
+                    "detected": false,
+                    "filtered": false
+                  }
+                },
+                "content_filter_offsets": {
+                  "start_offset": 0,
+                  "end_offset": 2095,
+                  "check_offset": 0
+                }
+              },
+              {
+                "blocked": false,
+                "source_type": "completion",
+                "content_filter_raw": [],
+                "content_filter_results": {
+                  "protected_material_code": {
+                    "detected": false,
+                    "filtered": false
+                  },
+                  "protected_material_text": {
+                    "detected": false,
+                    "filtered": false
+                  },
+                  "hate": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "sexual": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "violence": {
+                    "filtered": false,
+                    "severity": "safe"
+                  },
+                  "self_harm": {
+                    "filtered": false,
+                    "severity": "safe"
+                  }
+                },
+                "content_filter_offsets": {
+                  "start_offset": 0,
+                  "end_offset": 431,
+                  "check_offset": 0
+                }
+              }
+            ],
+            "frequency_penalty": 0.0,
+            "moderation": null,
+            "presence_penalty": 0.0,
+            "store": true
+          },
+          "vlm_review": {
+            "sync_score": 0.88,
+            "contact_consistency_score": 0.9,
+            "signal_health_score": 0.86,
+            "instruction_consistency_score": 0.94,
+            "issues": [
+              "minor RGB-tactile timing offset in a few frames",
+              "one frame shows weak tactile response despite visible proximity/contact uncertainty",
+              "late frames show prolonged high tactile energy plateau that may indicate sustained hold or slight sensor saturation"
+            ],
+            "final_status": "warning",
+            "needs_human_review": true
+          }
+        }
+      ]
+    }
+  ]
+}

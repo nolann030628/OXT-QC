@@ -213,6 +213,58 @@ def _array_image_panel(
     return np.stack([panel, panel, panel], axis=2)
 
 
+def _image_like_to_uint8_rgb(img: np.ndarray) -> np.ndarray:
+    x = np.asarray(img)
+    if x.ndim == 2:
+        x = x[..., None]
+    elif x.ndim == 3 and x.shape[0] in (1, 3, 4) and x.shape[-1] not in (1, 3, 4):
+        x = np.transpose(x, (1, 2, 0))
+    elif x.ndim != 3:
+        raise ValueError(f"expected image-like frame, got shape {x.shape}")
+
+    if x.shape[-1] == 1:
+        x = np.repeat(x, 3, axis=2)
+    elif x.shape[-1] == 4:
+        x = x[..., :3]
+    elif x.shape[-1] != 3:
+        raise ValueError(f"unsupported image channel count in shape {x.shape}")
+
+    return _to_uint8_rgb(x)
+
+
+def _image_panel(
+    frame: np.ndarray,
+    out_size: tuple[int, int],
+) -> np.ndarray:
+    w, h = out_size
+    x = np.asarray(frame)
+
+    if x.ndim <= 3:
+        images = [_image_like_to_uint8_rgb(x)]
+    elif x.ndim == 4:
+        images = [_image_like_to_uint8_rgb(x[i]) for i in range(x.shape[0])]
+    else:
+        raise ValueError(f"unsupported image tactile frame shape {x.shape}")
+
+    n = len(images)
+    cols = int(np.ceil(np.sqrt(n)))
+    rows = int(np.ceil(n / cols))
+    cell_w = max(1, w // cols)
+    cell_h = max(1, h // rows)
+    panel = np.zeros((h, w, 3), dtype=np.uint8)
+
+    for idx, img in enumerate(images):
+        r, c = divmod(idx, cols)
+        y0, x0 = r * cell_h, c * cell_w
+        y1, x1 = min(h, y0 + cell_h), min(w, x0 + cell_w)
+        if y1 <= y0 or x1 <= x0:
+            continue
+        resized = np.asarray(Image.fromarray(img).resize((x1 - x0, y1 - y0)))
+        panel[y0:y1, x0:x1] = resized
+
+    return panel
+
+
 def render_tactile_panel(
     frame: np.ndarray,
     tactile_kind: str,
@@ -224,6 +276,8 @@ def render_tactile_panel(
 ) -> np.ndarray:
     if tactile_kind == "state":
         return _state_panel(frame, energy_series, t, out_size, vmin, vmax)
+    if tactile_kind == "image":
+        return _image_panel(frame, out_size)
     return _array_image_panel(frame, out_size, vmin, vmax)
 
 
@@ -762,7 +816,7 @@ def analyze_one_dataset(
         tactile_type_values = sorted(set(vals.tolist()))
     tactile_type_norm = sorted({TACTILE_TYPE_ALIAS.get(v, v) for v in tactile_type_values})
     tactile_kind = tactile_type_norm[0] if tactile_type_norm else "array"
-    render_kind = "array" if tactile_kind in {"array", "matrix", "image"} else tactile_kind
+    render_kind = "array" if tactile_kind == "matrix" else tactile_kind
     tactile_vmin, tactile_vmax = _estimate_value_range(tact, indices)
 
     instructions: list[str] = []
@@ -788,7 +842,8 @@ def analyze_one_dataset(
         f"Instruction samples: {instructions}.\n"
         "Tactile panel rendering rule:\n"
         "- if type=state: top half are per-channel bars, bottom half is local energy curve.\n"
-        "- if type=array/matrix/image: channel maps are tiled while preserving channel 2D structure.\n"
+        "- if type=array/matrix: channel maps are tiled while preserving channel 2D structure.\n"
+        "- if type=image: raw tactile images are tiled directly; CHW images are converted to HWC RGB before display.\n"
         f"- fixed tactile normalization range for this dataset: [{tactile_vmin:.6g}, {tactile_vmax:.6g}].\n"
         "Focus on: RGB-tactile rough synchronization, broken contact patterns, abnormal "
         "signal stability, and instruction/action consistency.\n"

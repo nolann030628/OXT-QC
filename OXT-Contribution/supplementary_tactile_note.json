@@ -1,0 +1,27 @@
+{
+    "supplementary_tactile_sensor_name_1": {
+        "type": "state",
+        "shape": [2, 4],
+        "sensor_num": 2,  
+        "sensor_dimension": 4,
+        "sensor_description": "please use english to describe the state tactile sensor properties.",
+        "sensor_idx_description": {
+            "sensor_idx_1": "please use english to describe the tactile sensor idx 1.",
+            "sensor_idx_2": "please use english to describe the tactile sensor idx 2."
+        }
+    },
+    "supplementary_tactile_sensor_name_2": {
+        "type": "image",
+        "shape": [5, 224, 224, 3],
+        "sensor_num": 5,
+        "sensor_dimension": [224, 224, 3],
+        "sensor_description": "please use english to describe the imagetactile sensor properties.",
+        "sensor_idx_description": {
+            "sensor_idx_1": "please use english to describe the tactile sensor idx 1.",
+            "sensor_idx_2": "please use english to describe the tactile sensor idx 2.",
+            "sensor_idx_3": "please use english to describe the tactile sensor idx 3.",
+            "sensor_idx_4": "please use english to describe the tactile sensor idx 4.",
+            "sensor_idx_5": "please use english to describe the tactile sensor idx 5."
+        }
+    }
+}

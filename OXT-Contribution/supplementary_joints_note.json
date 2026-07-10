@@ -1,0 +1,13 @@
+{
+    "supplementary_joins": {
+        "dimension": 6,
+        "dim_description": {
+            "dim_1": "please use english to describe the joint.",
+            "dim_2": "please use english to describe the joint.",
+            "dim_3": "please use english to describe the joint.",
+            "dim_4": "please use english to describe the joint.",
+            "dim_5": "please use english to describe the joint.",
+            "dim_6": "please use english to describe the joint."
+        }
+    }
+}

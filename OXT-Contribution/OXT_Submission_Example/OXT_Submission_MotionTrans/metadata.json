@@ -1,0 +1,24 @@
+{
+    "name": "MotionTrans",
+    "url": [
+        "https://www.modelscope.cn/datasets/Eureka1064/FTP-1-Dataset",
+        "https://huggingface.co/datasets/MJJJJ1064/FTP-1-Dataset"
+    ],
+    "version": "1.0.0",
+    "description": "Open-Sourced tactile manipulation data from MotionTrans paper, processed by FTP-1 project.",
+    "type": "dexhand",
+    "sensor_image": [],
+    "sensor_array": [],
+    "sensor_state": ["InspireHand"],
+    "label": ["ego"],
+    "task": 29,
+    "trajectory": 1768,
+    "frame": 321132,
+    "contact": ["ycb24@mails.tsinghua.edu.cn"],
+    "reference": {
+        "paper": "MotionTrans: Human VR Data Enable Motion-Level Learning for Robotic Manipulation Policies",
+        "website": "https://motiontrans.github.io/",
+        "authors": "Chengbo Yuan, Rui Zhou, Mengzhen Liu, Yingdong Hu, Shengjie Wang, Li Yi, Chuan Wen, Shanghang Zhang, Yang Gao."
+    },
+    "code_trigger": "FTP_1_Source" 
+}
