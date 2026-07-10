@@ -58,8 +58,8 @@ This script performs interactive 4D visualization for camera/wrist coordinate sy
 python precheck_4dvis.py -d --data_path /path/to/dataset.zarr
 ```
 
-If the dataset carries the `umi` label, refer to `docs_关于umi数据坐标系定义的说明.pptx`.
-If the dataset carries the `ego` label, refer to `docs_关于ego数据坐标系定义的说明.pptx`.
+If the dataset carries the `umi` label, refer to `docs_Illustration about UMI Data Frame.pptx`.
+If the dataset carries the `ego` label, refer to `docs_Illustration about Ego Data Frame.pptx`.
 If neither label applies, this 4D visualization check may be skipped.
 
 ### 3. VLM Precheck
