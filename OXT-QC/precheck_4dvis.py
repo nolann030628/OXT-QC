@@ -399,7 +399,7 @@ def visualization(
         # wrist_pose, finger_pos
         left_wrist_pose_i = None if left_wrist_pose is None else left_wrist_pose[i]
         left_finger_pos_i = None if left_finger_pos is None else left_finger_pos[i]
-        right_wrist_pose_i = right_wrist_pose[i]
+        right_wrist_pose_i = None if right_wrist_pose is None else right_wrist_pose[i]
         right_finger_pos_i = None if right_finger_pos is None else right_finger_pos[i]
         
         # 左wrist: 红色，较大的坐标系，较大的点，较大的标记球体
@@ -510,6 +510,9 @@ def main(args, max_points_distance=2.0):
             camera_poses = mat_to_pose(pose_to_mat(camera_poses) @ camera_adjust_mat)
         else:
             pass
+    elif 'left_wrist_camera_rgb' in episode:  # left-hand wrist-camera data, same as the right-hand dexhand case
+        videos = episode['left_wrist_camera_rgb']
+        camera_poses = np.stack([left_wrist_pose[0]] * len(videos), axis=0)
     else:
         raise ValueError("No camera RGB data found in the episode.")
 
