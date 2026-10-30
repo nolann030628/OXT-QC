@@ -9,21 +9,9 @@ import numpy as np
 from functools import cached_property
 from multiprocessing import Process, Lock
 from zarr.storage import MemoryStore, LocalStore
+from imagecodecs.numcodecs import register_codecs
 
-try:
-    from imagecodecs.numcodecs import register_codecs
-except ModuleNotFoundError as exc:
-    if not (exc.name or '').startswith('imagecodecs'):
-        raise
-    warnings.warn(
-        'imagecodecs is not installed; JPEG/JPEG XL and other image codecs '
-        'are unavailable. Install with: python -m pip install imagecodecs. '
-        'Built-in numcodecs compression and uncompressed arrays remain available.',
-        RuntimeWarning,
-        stacklevel=2,
-    )
-else:
-    register_codecs(force=False, verbose=False)
+register_codecs(force=False, verbose=False)
 
 
 def check_chunks_compatible(chunks: tuple, shape: tuple):
