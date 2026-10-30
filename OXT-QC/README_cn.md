@@ -27,6 +27,8 @@
 pip install -r requirements.txt
 ```
 
+`ReplayBuffer` 导入时会自动注册 `imagecodecs.numcodecs` 提供的 codec（不覆盖已注册的 codec），包括 JPEG、JPEG XL、JPEG 2000、JPEG-LS、PNG、WebP 等。已有环境可运行 `python -m pip install 'imagecodecs>=2025.3.30'`。没有安装时仍可读取 Zstd、LZ4 和未压缩数组，但读取 JPEG XL 等数据前必须安装该依赖并重启 Python 进程。具体 codec 是否可用取决于安装包的原生后端；此注册用于 Zarr v2 的 numcodecs 元数据，不代表支持所有自定义 codec 或 Zarr v3 codec 管线。读取时按数组保存的配置自动解码，`disk` 仅为写入默认值。
+
 ## 用法
 
 ### 1. Metadata 预检
@@ -39,7 +41,7 @@ python precheck_metadata.py /path/to/dataset.zarr
 
 输出内容在`oxt_check_output/`，其中包含：
 
- - `dict.json`：整个zarr的key-value对，用于核对key-value的shape是否正确；对于固定值的key（比如hand_joint_idx、tactile_type、tactile_name），还会打印固定值；
+ - `dict.json`：整个zarr的key-value对，用于核对key-value的shape是否正确；对于固定值的key（比如hand_joint_idx、tactile_type、tactile_name），还会打印固定值；图像 key（以 `_rgb`、`_depth`、`_image` 结尾，或维度不少于 4）额外输出 `compression`，记录实际存储的压缩配置，而不是推测默认值。Zarr v2 未压缩时为 `null`，v3 为压缩 codec 配置列表（未压缩时为 `[]`）。ReplayBuffer 的 `disk` 对应 Blosc + Zstd、level 5、BITSHUFFLE。
  - `metadata.json`: 最终提交需要的metadata.json脚本，需要人工填写的部分默认留空；
  - `precheck_report.json`：metadata检查结果的完整版汇总报告；
  - `precheck_report_result.json`: metadata检查结果的精简结论；

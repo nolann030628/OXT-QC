@@ -2,12 +2,28 @@ from typing import Union, Dict, Optional
 import os
 import math
 import numbers
+import warnings
 import zarr
 import numcodecs
 import numpy as np
 from functools import cached_property
 from multiprocessing import Process, Lock
 from zarr.storage import MemoryStore, LocalStore
+
+try:
+    from imagecodecs.numcodecs import register_codecs
+except ModuleNotFoundError as exc:
+    if not (exc.name or '').startswith('imagecodecs'):
+        raise
+    warnings.warn(
+        'imagecodecs is not installed; JPEG/JPEG XL and other image codecs '
+        'are unavailable. Install with: python -m pip install imagecodecs. '
+        'Built-in numcodecs compression and uncompressed arrays remain available.',
+        RuntimeWarning,
+        stacklevel=2,
+    )
+else:
+    register_codecs(force=False, verbose=False)
 
 
 def check_chunks_compatible(chunks: tuple, shape: tuple):
@@ -353,7 +369,7 @@ class ReplayBuffer:
             compressors=compressors, if_exists=if_exists, **kwargs)
 
     @staticmethod
-    def resolve_compressor(compressor='default'):
+    def resolve_compressor(compressor='disk'):
         if compressor == 'default':
             compressor = numcodecs.Blosc(cname='lz4', clevel=5, 
                 shuffle=numcodecs.Blosc.NOSHUFFLE)
@@ -376,7 +392,7 @@ class ReplayBuffer:
             cpr = cls.resolve_compressor(compressors)
         # backup default
         if cpr == 'nil':
-            cpr = cls.resolve_compressor('default')
+            cpr = cls.resolve_compressor('disk')
         return cpr
     
     @classmethod

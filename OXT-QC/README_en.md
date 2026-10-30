@@ -27,6 +27,8 @@ Utilities for Open-X-Tactile (OXT) dataset precheck, VLM-based semantic review, 
 pip install -r requirements.txt
 ```
 
+Importing `ReplayBuffer` automatically registers the codecs provided by `imagecodecs.numcodecs` without replacing existing registrations, including JPEG, JPEG XL, JPEG 2000, JPEG-LS, PNG, and WebP. For an existing environment, run `python -m pip install 'imagecodecs>=2025.3.30'`. Without it, Zstd, LZ4, and uncompressed arrays still work; install the dependency and restart Python before loading JPEG XL data. Individual codecs require their native backend in the installed package. This registration covers Zarr v2 numcodecs metadata, not every custom codec or Zarr v3 codec pipeline. Reading uses the stored configuration automatically; `disk` is only the write default.
+
 ## Usage
 
 ### 1. Metadata Precheck
@@ -39,7 +41,7 @@ python precheck_metadata.py /path/to/dataset.zarr
 
 All outputs are written to `oxt_check_output/` by default:
 
-- `dict.json`: a full key summary for the current zarr, including shape and dtype for every key; for constant-like keys such as `hand_joints_idx`, `tactile_type`, and tactile area/sensor identifiers, the constant value is also recorded
+- `dict.json`: a full key summary for the current zarr, including shape and dtype for every key; for constant-like keys such as `hand_joints_idx`, `tactile_type`, and tactile area/sensor identifiers, the constant value is also recorded. Image keys (ending in `_rgb`, `_depth`, or `_image`, or having at least four dimensions) also include `compression`, read from the actual stored configuration. Uncompressed Zarr v2 arrays use `null`; v3 arrays use a list of compression codec configurations (`[]` when uncompressed). ReplayBuffer's `disk` preset means Blosc + Zstd, level 5, BITSHUFFLE.
 - `metadata.json`: the metadata file intended for final submission; human-authored fields are left empty by default when they cannot be inferred from the dataset
 - `precheck_report.json`: the full metadata precheck report
 - `precheck_report_result.json`: the compact metadata precheck conclusion

@@ -358,6 +358,8 @@ def _build_dict_export(
             "shape": info["shape"],
             "dtype": info["dtype"],
         }
+        if "compression" in info:
+            entry["compression"] = info["compression"]
         if key in constant_like:
             extra = {k: v for k, v in constant_like[key].items() if k not in ("shape", "dtype")}
             entry.update(extra)
@@ -505,6 +507,16 @@ def check_dataset(zarr_path: Path, gap_factor: float = DEFAULT_GAP_FACTOR) -> tu
         arr = data[k]
         shp = _shape(arr)
         key_info[k] = {"shape": shp, "dtype": str(arr.dtype)}
+        if k.endswith((RGB_KEY_SUFFIX, "_depth", "_image")) or len(shp) >= 4:
+            if arr.metadata.zarr_format == 2:
+                compressor = arr.metadata.compressor
+                key_info[k]["compression"] = (
+                    compressor.get_config() if compressor is not None else None
+                )
+            else:
+                key_info[k]["compression"] = [
+                    codec.to_dict() for codec in arr.compressors
+                ]
         if shp:
             frame_counts[k] = shp[0]
     report.add(

@@ -6,6 +6,7 @@ scipy
 tqdm
 zarr
 numcodecs
+imagecodecs>=2025.3.30
 matplotlib
 pillow
 openai
