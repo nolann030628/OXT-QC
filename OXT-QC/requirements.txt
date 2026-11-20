@@ -9,6 +9,5 @@ numcodecs
 imagecodecs>=2025.3.30
 matplotlib
 pillow
-openpyxl>=3.1
 openai
 volcengine-python-sdk[ark]

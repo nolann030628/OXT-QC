@@ -23,7 +23,6 @@ import subprocess
 import sys
 import threading
 import time
-import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -35,7 +34,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 
-VERSION = "1.2.0"
+VERSION = "2.0.0"
 RULES_CN = {
     "01": "image / RGB dtype 与 shape",
     "02": "state / matrix 双向类型、shape 与触觉成员",
@@ -47,8 +46,8 @@ RULES_CN = {
     "08": "示例视频格式",
     "09": "指令字段、dtype 与 shape",
     "10": "metadata、英文、邮箱、标签及统计",
-    "10.1": "表格正式名、仓库后缀和统一入口",
-    "10.2": "DatasetName 下两种压缩包目录格式",
+    "10.1": "_OXT 后缀和仓库内目录名称一致性",
+    "10.2": "仓库同名目录的两种压缩包格式",
     "10.3": "HF / hf-mirror 访问和覆盖",
     "11": "QC 文件、VLM 执行与评分",
     "12": "传感器名称和图片对应",
@@ -66,8 +65,8 @@ RULES = {
     "08": "Example video format",
     "09": "Instruction fields, dtype, and shape",
     "10": "Metadata fields, English, email, labels, and statistics",
-    "10.1": "Registered names, repository suffixes, and unified URLs",
-    "10.2": "The two archive layouts under DatasetName",
+    "10.1": "_OXT suffix and repository directory-name consistency",
+    "10.2": "The two archive layouts under the repository-named directory",
     "10.3": "HF / hf-mirror access and coverage",
     "11": "QC files, VLM execution, and scores",
     "12": "Sensor names and image correspondence",
@@ -92,14 +91,6 @@ ASPECTS = ("sync", "contact_consistency", "signal_health", "instruction_consiste
 ARCHIVE_RE = re.compile(r"\.(?:zip|7z|rar|tar|tgz|tbz2?|txz|gz|bz2|xz|zst|zstd|lz4|lz|lzma|lzo|cab|arj|ace|cpio|iso|paq\d*|zpaq|br)(?:\.\d{2,})?$|\.(?:z\d{2,}|r\d{2,})$", re.I)
 NON_ARCHIVE = {".json", ".jsonl", ".csv", ".md", ".txt", ".yaml", ".yml", ".py", ".png", ".jpg", ".jpeg", ".webp", ".mp4", ".pdf", ".html", ".sha256", ".npy", ".npz", ".parquet", ".h5", ".hdf5"}
 # Explicit legacy identities are identification aids, never accepted spellings.
-LEGACY_NAMES = {
-    "DeformableObjectsGrasping": "Deformable Grasping", "InsertTac-uSkin": "InsertTac",
-    "FR3_Xense": "DexManiTac", "FR3_Xense_Visual_Haptic_Fusion": "DexManiTac",
-    "paxini-openTAC-Hirobotlab": "OpenTAC-paxini", "OpenNeoData-OXT-Pilot": "OpenNeoData",
-    "RoboMIND2_Agilex_mobile": "Robomind2.0", "HumanoidTouchDream": "Humanoid Touch Dream",
-    "PAM19": "PAM", "ViTaMIn": "ViTaMIn-B", "SharpaTesttube": "DexLabAuto",
-    "oxt_pine": "DexLabAuto", "VTAM_xArm_GelSight": "VTAM", "MATRIXGlove": "MATRIX-Glove-Data",
-}
 
 
 def timestamp() -> str:
@@ -116,8 +107,6 @@ def strings(value: Any) -> list[str]:
     return [str(v) for v in flatten(value)]
 
 
-def normalized(value: str) -> str:
-    return re.sub(r"[\W_]+", "", unicodedata.normalize("NFKC", value).casefold())
 
 
 def read_json(path: Path) -> Any:
@@ -186,8 +175,6 @@ def action_keys(table: dict) -> list[str]:
 
 @dataclass
 class Options:
-    workbook: Path | None = None
-    dataset_name: str | None = None
     offline: bool = False
     timeout: float = 8.0
     repo_budget: float = 40.0
@@ -235,62 +222,6 @@ class Collector:
         return result
 
 
-class Registry:
-    def __init__(self, workbook: Path | None):
-        self.path = workbook
-        self.records: dict[str, dict] = {}
-        self.error = None
-        self.sha256 = None
-        if workbook is None or not workbook.is_file():
-            self.error = "Contributor List was not found; the registered DatasetName is unavailable"
-            return
-        try:
-            from openpyxl import load_workbook
-            book = load_workbook(workbook, read_only=False, data_only=True)
-            try:
-                sheet = book["WeChat"]
-                header = {str(c.value).strip(): c.column - 1 for c in sheet[1] if c.value is not None}
-                name_col, final_col = header["数据集名称"], header["终审"]
-                for row in sheet.iter_rows(min_row=2):
-                    value = row[name_col].value
-                    if value is None or not str(value).strip():
-                        continue
-                    name = str(value).strip()
-                    if name in self.records:
-                        raise ValueError(f"Duplicate registered name: {name}")
-                    review = str(row[final_col].value or "")
-                    if row[final_col].comment:
-                        review += "\n" + row[final_col].comment.text
-                    self.records[name] = {"name": name, "row": row[0].row, "cell": row[final_col].coordinate, "review": review}
-            finally:
-                book.close()
-            self.sha256 = hash_file(workbook)
-        except Exception as error:
-            self.error = f"Workbook read failed: {type(error).__name__}: {error}"
-
-    def resolve(self, folder: Path, meta: dict, override: str | None = None):
-        if self.error:
-            return None, {"error": self.error}
-        if override:
-            return self.records.get(override), {"method": "explicit", "error": None if override in self.records else "The specified name is not registered in the workbook"}
-        stem = re.sub(r"^OXT_submission_", "", folder.name, flags=re.I)
-        probes = [stem, str(meta.get("name", ""))]
-        for probe in probes:
-            if probe in self.records:
-                return self.records[probe], {"method": "exact", "identified_from": probe}
-        candidates = set()
-        for probe in probes:
-            variants = [probe, re.sub(r"[-_]OXT$", "", probe, flags=re.I)]
-            for variant in variants:
-                target = LEGACY_NAMES.get(variant)
-                if target in self.records:
-                    candidates.add(target)
-                candidates.update(name for name in self.records if normalized(name) == normalized(variant))
-        if len(candidates) == 1:
-            name = next(iter(candidates))
-            return self.records[name], {"method": "legacy_or_normalized_identification", "identified_from": probes,
-                                        "note": "Used only to identify a workbook row; compliance still requires the exact registered spelling"}
-        return None, {"error": "The registered name could not be uniquely identified", "candidates": sorted(candidates), "identified_from": probes}
 
 
 @dataclass(frozen=True)
@@ -610,7 +541,7 @@ def check_layout(entries: list[dict], dataset_name: str, children: dict[str, Tre
         for item in files_in_parent:
             kind = item.get("archive_kind", archive_kind(item["path"]))
             if kind in ("plain", "pointer"):
-                collector.add("10.2", "fail", "non_archive" if kind == "plain" else "lfs_pointer", 'An existing VLM result records a finding', source=item["path"])
+                collector.add("10.2", "fail", "non_archive" if kind == "plain" else "lfs_pointer", "The directory contains a non-archive file or an LFS pointer", source=item["path"])
             elif kind == "unknown":
                 collector.add("10.2", "unknown", "archive_unrecognized", 'Archive format could not be identified; formats are unrestricted', source=item["path"])
             if item.get("size") == 0:
@@ -642,39 +573,25 @@ def probe_video(path: Path) -> dict:
         return {"unknown": f"Video probing failed: {type(error).__name__}"}
 
 
-def directives(record: dict | None) -> dict:
-    review = record.get("review", "") if record else ""
-    fields = re.findall(r"(?:left|right|supplementary)_[A-Za-z0-9_]*tactile_data_[A-Za-z0-9_]+", review)
-    expected = "matrix" if re.search(r"应该是matrix|应该为matrix", review) else None
-    if expected is None and re.search(r"matrix而不是state", review):
-        expected = "state"
-    if expected is None and re.search(r"state而不是matrix", review):
-        expected = "matrix"
-    scalar = re.search(r"\(T,\s*(N|\d+),\s*1\)", review)
-    result = {"review": review, "field_types": {f: expected for f in fields if expected},
-              "scalar_fields": {f: (int(scalar[1]) if scalar and scalar[1].isdigit() else None) for f in fields} if scalar else {},
-              "require_labels": [], "forbid_labels": []}
-    for label in ("ego", "umi"):
-        if re.search(r"不是\s*" + label, review, re.I):
-            result["forbid_labels"].append(label)
-        elif re.search(r"没有\s*" + label + r"标签", review, re.I):
-            result["require_labels"].append(label)
-    return result
 
 
-def validate_metadata(folder: Path, meta: dict, record: dict | None, resolution: dict, c: Collector):
+def validate_metadata(folder: Path, meta: dict, c: Collector):
     c.applicable.add("10")
     if missing := [key for key in FIELDS if key not in meta]:
         c.add("10", "fail", "missing_fields", 'Required metadata fields are missing', source="metadata.json", evidence=missing)
-    for key in ("name", "version", "description", "code_trigger"):
+    for key in ("name", "version", "description"):
         if not isinstance(meta.get(key), str) or not meta[key].strip():
             c.add("10", "fail", "unfilled", 'Metadata fields are empty or are not strings', key=key, source="metadata.json")
+    if "code_trigger" in meta and meta["code_trigger"] != "":
+        c.add("10", "fail", "code_trigger_not_empty", "code_trigger must be an empty string", key="code_trigger", source="metadata.json", evidence=meta["code_trigger"])
     for key in ("url", "sensor_image", "sensor_array", "sensor_state", "label", "contact"):
         value = meta.get(key)
         if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
             c.add("10", "fail", "field_type", 'Metadata field types are invalid', key=key, source="metadata.json", evidence=type(value).__name__)
     if not meta.get("url"):
         c.add("10", "fail", "url_empty", 'A download URL is missing', source="metadata.json")
+    elif isinstance(meta["url"], list) and len(meta["url"]) != 1:
+        c.add("10", "fail", "url_count", "Exactly one download URL is required", key="url", source="metadata.json", evidence={"count": len(meta["url"]), "urls": meta["url"]})
     if meta.get("type") not in ("gripper", "dexhand", "human"):
         c.add("10", "fail", "embodiment_type", 'Metadata.type must be gripper/dexhand/human', source="metadata.json", evidence=meta.get("type"))
     for key in ("task", "trajectory", "frame"):
@@ -692,23 +609,6 @@ def validate_metadata(folder: Path, meta: dict, record: dict | None, resolution:
         c.add("10", "fail", "contact_email", 'Contact must contain email addresses only', source="metadata.json", evidence=contacts)
     if not isinstance(meta.get("reference"), dict):
         c.add("10", "fail", "reference_type", 'Reference must be an object', source="metadata.json")
-    if record is None:
-        c.add("10.1", "unknown", "canonical_unknown", 'The registered DatasetName could not be uniquely identified', evidence=resolution)
-    else:
-        name = record["name"]
-        c.applicable.add("10.1")
-        if meta.get("name") != name:
-            c.add("10.1", "fail", "metadata_name", 'Metadata.name does not match the registered name', source="metadata.json", evidence={"expected": name, "actual": meta.get("name"), "row": record["row"]})
-        if folder.name != "OXT_Submission_" + name:
-            c.add("10.1", "fail", "submission_name", 'The submission folder name does not match the registered name', source=folder.name, evidence={"expected": "OXT_Submission_" + name})
-    d = directives(record)
-    for label in d["require_labels"]:
-        if label not in labels:
-            c.add("10", "fail", "review_missing_label", 'A label required by the final review is missing', key=label, evidence=record["cell"])
-    for label in d["forbid_labels"]:
-        if label in labels:
-            c.add("10", "fail", "review_forbidden_label", 'A label rejected by the final review is still present', key=label, evidence=record["cell"])
-    return d
 
 
 def check_assets(folder: Path, meta: dict, labels: set[str], sensors: set[str], c: Collector) -> dict:
@@ -758,15 +658,12 @@ def check_assets(folder: Path, meta: dict, labels: set[str], sensors: set[str], 
     return {"example_video": example_video, "images": sorted(images)}
 
 
-def check_arrays(folder: Path, meta: dict, dict_obj: Any, d: dict, c: Collector) -> dict:
+def check_arrays(folder: Path, meta: dict, dict_obj: Any, c: Collector) -> dict:
     metrics = {"tables": 0, "named_tables": 0, "flat_schema": False, "frames": 0, "episodes": 0,
                "missing_episode_ends": 0, "sensors": set(), "sensor_types": defaultdict(set),
                "supplementary_shapes": defaultdict(set), "compression": Counter(), "no_actions": 0,
-               "ego_rgb_missing": 0, "ego_pose_missing": 0, "directive_fields_seen": set()}
-    expected_types = dict(d["field_types"])
-    if "right_tactile_data_finger" in expected_types:
-        expected_types["right_tactile_data_fingers"] = expected_types["right_tactile_data_finger"]
-    canonical = meta.get("type")
+               "ego_rgb_missing": 0, "ego_pose_missing": 0}
+    embodiment_type = meta.get("type")
     for table_path, table in iter_tables(dict_obj):
         metrics["tables"] += 1
         metrics["named_tables"] += bool(table_path)
@@ -874,13 +771,36 @@ def check_arrays(folder: Path, meta: dict, dict_obj: Any, d: dict, c: Collector)
                 if compression == "uncompressed":
                     c.add("11", "warning", "image_uncompressed", 'Exported image compression is disabled', key=key, example=example, signature=non_time)
         pad_areas = defaultdict(set)
-        if canonical == "gripper":
-            for (side, _), group in groups.items():
+        pad_counts = defaultdict(int)
+        pad_indices = {}
+        if embodiment_type == "gripper":
+            for (prefix, detail), group in groups.items():
                 data = group.get("data", (None, {}))[1]
                 shape = data.get("shape", [])
-                kinds = set(strings(group.get("type", (None, {}))[1].get("constant_value")))
-                if side in ("left", "right") and kinds & {"image", "matrix"} and len(shape) >= 4 and shape[1] in (1, 2) and "area" in group:
-                    pad_areas[side].update(flatten(group["area"][1].get("constant_value")))
+                if prefix == "supplementary" or len(shape) < 2 or shape[1] not in (1, 2):
+                    continue
+                data_key = prefix + "_tactile_data_" + detail
+                index = group.get("area")
+                offset = 0
+                if index is None:
+                    static_key = "meta/tactile_slot_idx__" + data_key
+                    if static_key not in table:
+                        continue
+                    index = (static_key, table[static_key])
+                    if not prefix.startswith(("left", "right")):
+                        c.add("03", "unknown", "gripper_area_unrecorded", "Gripper local area could not be resolved from the static indices", key=static_key, example=example)
+                        continue
+                    offset = 24 if prefix.startswith("left") else 0
+                values = flatten(index[1].get("constant_value"))
+                if not values:
+                    c.add("03", "unknown", "gripper_area_unrecorded", "Gripper area constants are unavailable", key=index[0], example=example)
+                    continue
+                if not all(isinstance(v, int) and not isinstance(v, bool) for v in values):
+                    continue
+                local = [v - offset for v in values]
+                pad_areas[prefix].update(local)
+                pad_counts[prefix] = max(pad_counts[prefix], shape[1])
+                pad_indices[data_key] = (index[0], values, local, offset)
         for (prefix, detail), members in groups.items():
             c.applicable.add("02")
             required = {"data", "sensor", "type"} if prefix == "supplementary" else {"data", "area", "sensor", "type"}
@@ -908,18 +828,12 @@ def check_arrays(folder: Path, meta: dict, dict_obj: Any, d: dict, c: Collector)
                 c.applicable.add("01")
                 if str(info.get("dtype")) not in UINT8:
                     c.add("01", "fail", "image_not_uint8", IMAGE_DTYPE_GUIDANCE, key=key, example=example, evidence=ev, signature=shape[1:])
-            if "state" in types and len(shape) < 3:
-                c.add("02", "fail", "scalar_axis_missing", 'Scalar state shape does not match (T,N,1)', key=key, example=example, evidence=ev, signature=shape[1:])
-            expected = expected_types.get(key)
-            if key in d["scalar_fields"]:
-                metrics["directive_fields_seen"].add(key)
-                n = d["scalar_fields"][key]
-                if len(shape) != 3 or shape[-1] != 1 or (n is not None and shape[1] != n):
-                    c.add("02", "fail", "terminal_scalar_shape", 'Scalar state shape does not match (T,N,1)', key=key, example=example, evidence=ev, signature=shape[1:])
-            if expected:
-                metrics["directive_fields_seen"].add(key)
-                if types and expected not in types:
-                    c.add("02", "fail", "terminal_expected_type", 'Tactile type does not match the final-review requirement', key=key, example=example, evidence={**ev, "expected": expected}, signature=shape[1:])
+            if "state" in types and len(shape) != 3:
+                c.add("02", "fail", "state_shape", "State tactile data must be three-dimensional; use matrix for spatial grids", key=key, example=example, evidence=ev, signature=shape[1:])
+            dtype = str(info.get("dtype", "")).lower()
+            floating = bool(re.fullmatch(r"(?:float(?:16|32|64|128)?|bfloat16|[<>=|]?f(?:2|4|8|16))", dtype))
+            if floating and len(shape) in (4, 5) and types and "matrix" not in types and "state" not in types:
+                c.add("02", "fail", "floating_grid_type", "Floating-point spatial tactile data must use type=matrix", key=key, example=example, evidence=ev, signature=shape[1:])
             if "area" in members:
                 area = members["area"][1]
                 if len(shape) < 2 or area["shape"] != shape[:2]:
@@ -933,14 +847,14 @@ def check_arrays(folder: Path, meta: dict, dict_obj: Any, d: dict, c: Collector)
                 if len(area_values) > 1 and len(set(map(str, area_values))) == 1:
                     c.add("02", "fail", "functional_area_not_consolidated", 'One functional area occupies duplicate channels', key=key,
                           example=example, evidence={**ev, "area": area_values[:30], "target": "area=(T,1), data=(T,1,D)"}, signature=shape[1:])
-                # MTTS contact pads, not independent wrist wrench regions.
-                if canonical == "gripper" and types & {"image", "matrix"} and prefix in ("left", "right") and len(shape) >= 4 and shape[1] in (1, 2):
-                    # Two pads can be exported as two separate N=1 groups.
-                    # Compare the hand's complete pad-id set, not each group to 0.
-                    observed = pad_areas[prefix]
-                    target = list(range(len(observed))) if 0 < len(observed) <= 2 else None
-                    if target is not None and area_values and not set(area_values).issubset(target):
-                        c.add("03", "fail", "gripper_area", 'Gripper area must be 0 or [0,1]', key=members["area"][0], example=example, evidence={"actual": area_values, "expected": target}, signature=area_values)
+            if key in pad_indices:
+                # Separate N=1 streams can still represent the two pads of one gripper.
+                index_key, actual, local, offset = pad_indices[key]
+                count = min(2, max(pad_counts[prefix], len(pad_areas[prefix])))
+                target = list(range(count))
+                if target is not None and not set(local).issubset(target):
+                    c.add("03", "fail", "gripper_area", "Gripper local area must be 0 or [0,1]", key=index_key, example=example,
+                          evidence={"actual": actual, "expected": [v + offset for v in target], "local_actual": local, "local_expected": target}, signature=actual)
             for member in ("sensor", "type"):
                 if member in members and members[member][1]["shape"] != [T]:
                     c.add("02", "fail", "tactile_string_shape", 'Sensor/type must be a (T,) string array', key=members[member][0], example=example, evidence=members[member][1]["shape"])
@@ -1014,7 +928,7 @@ def check_supplementary(folder: Path, metrics: dict, labels: set[str], c: Collec
         c.add("13", "fail", "unexplained_joint_dimensions", 'Some supplementary joint dimensions have no description', evidence=sorted(joint_dimensions - described_dimensions))
 
 
-def check_existing_qc(folder: Path, record: dict | None, c: Collector) -> dict:
+def check_existing_qc(folder: Path, c: Collector) -> dict:
     c.applicable.add("11")
     qdir = folder / "oxt_check_output"
     result = {"files": [], "precheck_warnings": {}, "vlm_counts": {}}
@@ -1111,30 +1025,27 @@ def check_existing_qc(folder: Path, record: dict | None, c: Collector) -> dict:
     return result
 
 
-def check_remote(meta: dict, name: str | None, options: Options, client: RemoteClient, c: Collector) -> list[dict]:
+def check_remote(meta: dict, options: Options, client: RemoteClient, c: Collector) -> list[dict]:
     parsed = []
     for url in strings(meta.get("url")):
         try:
             parsed.append((url, parse_source(url)))
         except Exception as error:
             c.add("10.1", "fail", "dataset_url", 'The download URL is not a valid HF/MS dataset URL', source=url, evidence=str(error))
-    identities = defaultdict(set)
     sources = {}
     for url, source in parsed:
-        identities[source.provider].add((source.repo, source.revision, source.subdir, source.filename))
         sources.setdefault((source.provider, source.repo, source.revision), (url, source))
         c.applicable.add("10.1")
-        if name and not source.repo.rsplit("/", 1)[-1].endswith(name + "_OXT"):
-            c.add("10.1", "fail", "repo_suffix", 'Repository name must end with DatasetName_OXT', source=url, evidence={"expected_suffix": name + "_OXT", "repo": source.repo})
+        name = source.repo.rsplit("/", 1)[-1]
+        if not name.endswith("_OXT"):
+            c.add("10.1", "fail", "repo_suffix", "Repository name must end with _OXT", source=url, evidence={"expected_suffix": "_OXT", "repo": source.repo})
         if source.filename or (source.subdir and source.subdir != name):
             c.add("10.1", "fail", "partial_entry", 'The download URL points to a subdirectory or a single file', source=url, evidence=asdict(source))
-    for provider, variants in identities.items():
-        if len(variants) > 1:
-            c.add("10.1", "fail", "multiple_entries", 'One platform has multiple download URLs', key=provider, evidence=sorted(map(str, variants)))
     if not parsed:
         c.add("10.2", "unknown", "no_remote_entry", 'No readable remote dataset URL is available')
     result = []
     for url, source in sources.values():
+        name = source.repo.rsplit("/", 1)[-1]
         if options.offline:
             c.add("10.2", "unknown", "offline", 'Remote checks were skipped in offline mode', source=url)
             if source.provider == "hf":
@@ -1181,9 +1092,6 @@ def check_remote(meta: dict, name: str | None, options: Options, client: RemoteC
                 c.add("10.1", "unknown", "readme_unverified", 'README content could not be read', source=url, evidence=str(error))
         elif root["complete"]:
             c.add("10.1", "fail", "readme_missing", 'README.md is missing from the repository root', source=url)
-        if not name:
-            c.add("10.2", "unknown", "canonical_unknown", 'The registered DatasetName could not be uniquely identified', source=url)
-            continue
         target = next((e for e in root["entries"] if e["path"] == name and e["kind"] == "directory"), None)
         if not target:
             c.add("10.2", "fail" if root["complete"] and not remote.get("official_sync_unverified") else "unknown", "dataset_dir_missing", 'The repository lacks the exact DatasetName directory', source=url,
@@ -1237,16 +1145,6 @@ def check_remote(meta: dict, name: str | None, options: Options, client: RemoteC
     return result
 
 
-def locate_workbook(start: Path) -> Path | None:
-    seen = set()
-    for directory in [start, *start.parents, Path(__file__).resolve().parent, *Path(__file__).resolve().parents]:
-        if directory in seen:
-            continue
-        seen.add(directory)
-        candidate = directory / "Open-X-Tactile Contributor List.xlsx"
-        if candidate.is_file():
-            return candidate
-    return None
 
 
 def json_safe(value: Any) -> Any:
@@ -1263,7 +1161,7 @@ def json_safe(value: Any) -> Any:
     return value
 
 
-def review_dataset(folder: Path, registry: Registry, options: Options, client: RemoteClient) -> dict:
+def review_dataset(folder: Path, options: Options, client: RemoteClient) -> dict:
     folder = folder.resolve()
     c = Collector()
     initial_stats = {}
@@ -1288,18 +1186,17 @@ def review_dataset(folder: Path, registry: Registry, options: Options, client: R
             if rule != "10":
                 c.add(rule, "unknown", "metadata_unavailable", 'Metadata is unavailable; related checks are incomplete')
         meta = {}
-    record, resolution = registry.resolve(folder, meta, options.dataset_name)
     metrics: dict = {"tables": 0, "sensors": set(), "supplementary_shapes": {}, "compression": {}}
     assets = {}
     qc = {}
     remote = []
     if metadata_loaded:
-        d = validate_metadata(folder, meta, record, resolution, c)
+        validate_metadata(folder, meta, c)
         labels = set(strings(meta.get("label")))
         dict_path = folder / "oxt_check_output/dict.json"
         try:
             dict_obj = read_json(dict_path)
-            metrics = check_arrays(folder, meta, dict_obj, d, c)
+            metrics = check_arrays(folder, meta, dict_obj, c)
             sources["oxt_check_output/dict.json"]["sha256"] = hash_file(dict_path)
         except Exception as error:
             for rule in ("01", "02", "03", "05", "09", "12", "13", "14"):
@@ -1310,22 +1207,26 @@ def review_dataset(folder: Path, registry: Registry, options: Options, client: R
         if metrics.get("tables") and declared != metrics["sensors"]:
             c.add("12", "fail", "sensor_names", 'Sensor names differ between metadata and dict', evidence={"metadata_only": sorted(declared - metrics["sensors"]), "dict_only": sorted(metrics["sensors"] - declared)})
         check_supplementary(folder, metrics, labels, c)
-        qc = check_existing_qc(folder, record, c)
+        qc = check_existing_qc(folder, c)
         if "ego" in labels and metrics.get("tables"):
             c.applicable.add("14")
             if metrics.get("ego_pose_missing") or metrics.get("ego_rgb_missing"):
                 c.add("14", "warning", "ego_fields", 'The ego label is present but camera_ego_rgb/pose is missing', evidence={"tables": metrics["tables"], "rgb_missing": metrics.get("ego_rgb_missing"), "pose_missing": metrics.get("ego_pose_missing")})
-        remote = check_remote(meta, record["name"] if record else None, options, client, c)
+        remote = check_remote(meta, options, client, c)
     for name, before in initial_stats.items():
         path = folder / name
         if not path.is_file() or (path.stat().st_size, path.stat().st_mtime_ns) != before:
             c.add("11", "warning", "input_changed", 'An input file changed during the check', source=name)
     summaries = c.summary()
     status = "fail" if any(s["status"] == "fail" for s in summaries) else "needs_review" if any(s["status"] not in ("pass", "not_applicable") for s in summaries) else "pass"
+    repository_names = set()
+    for url in strings(meta.get("url")):
+        try:
+            repository_names.add(parse_source(url).repo.rsplit("/", 1)[-1])
+        except ValueError:
+            continue
     report = {"tool": "precheck_final", "version": VERSION, "generated_at": timestamp(), "input_dir": str(folder),
-              "dataset": folder.name, "metadata_name": meta.get("name"), "canonical_name": record["name"] if record else None,
-              "canonical_resolution": resolution, "workbook": {"path": str(registry.path) if registry.path else None, "sha256": registry.sha256,
-                                                              "sheet": "WeChat", "record": record, "error": registry.error},
+              "dataset": folder.name, "metadata_name": meta.get("name"), "repository_names": sorted(repository_names),
               "overall_status": status, "submission_ready": status == "pass", "rules": summaries,
               "findings": sorted(c.findings, key=lambda f: (ORDER[f["rule"]], -STATUS_ORDER[f["status"]], f["code"], f["key"])),
               "finding_status_counts": dict(Counter(f["status"] for f in c.findings)),
@@ -1356,8 +1257,14 @@ ASSUMED_CORRECT_CODES = {
     "archive_payload", "sensor_category", "coordinate_convention", "only_extended_actions",
     "rgb_alpha", "matrix_vector", "legacy_supp_tactile", "imu_as_joints",
     "full_report_omitted", "terminal_provenance",
+    "metadata_name", "submission_name", "review_missing_label", "review_forbidden_label",
+    "terminal_expected_type", "terminal_scalar_shape", "canonical_unknown",
 }
 FAIL_TEXT_CN = {
+    "code_trigger_not_empty": 'code_trigger 必须填写空字符串 ""',
+    "url_count": "下载链接必须且只能有一个",
+    "state_shape": "state 触觉只能是三维 (T,N,D)，空间网格请使用 matrix",
+    "floating_grid_type": "浮点空间网格触觉必须使用 matrix 类型",
     "image_not_uint8": IMAGE_DTYPE_GUIDANCE_CN,
     "rgb_schema": "RGB 不是 (T,H,W,3) uint8",
     "rgb_missing": "缺少 RGB 数据",
@@ -1415,11 +1322,11 @@ FAIL_TEXT_CN = {
     "review_missing_label": "缺少终审要求的标签",
     "review_forbidden_label": "仍有终审要求删除的标签",
     "dataset_url": "下载入口不是有效的 HF/MS 数据集链接",
-    "repo_suffix": "repo 名未以 DatasetName_OXT 结尾",
+    "repo_suffix": "repo 名必须以 _OXT 结尾",
     "partial_entry": "下载入口指向子目录或单个文件",
     "multiple_entries": "同一平台有多个下载入口",
     "readme_missing": "repo 根目录缺少 README.md",
-    "dataset_dir_missing": "repo 缺少同名 DatasetName 文件夹",
+    "dataset_dir_missing": "repo 缺少与仓库名称一致的数据目录",
     "empty_dataset": "数据集目录为空",
     "empty_task": "任务文件夹为空",
     "mixed_layout": "数据目录混放文件和任务文件夹",
@@ -1447,6 +1354,10 @@ FAIL_TEXT_CN = {
     "internal_error": "检查脚本执行失败",
 }
 FAIL_TEXT = {
+    "code_trigger_not_empty": 'code_trigger must be an empty string ("")',
+    "url_count": "Exactly one download URL is required",
+    "state_shape": "State tactile data must be three-dimensional (T,N,D); use matrix for spatial grids",
+    "floating_grid_type": "Floating-point spatial tactile data must use type=matrix",
     "image_not_uint8": IMAGE_DTYPE_GUIDANCE,
     "rgb_schema": "RGB must have shape (T,H,W,3) and dtype uint8",
     "rgb_missing": "RGB data is missing",
@@ -1504,11 +1415,11 @@ FAIL_TEXT = {
     "review_missing_label": "A label required by the final review is missing",
     "review_forbidden_label": "A label rejected by the final review is still present",
     "dataset_url": "The download URL is not a valid HF/MS dataset URL",
-    "repo_suffix": "Repository name must end with DatasetName_OXT",
+    "repo_suffix": "Repository name must end with _OXT",
     "partial_entry": "The download URL points to a subdirectory or a single file",
     "multiple_entries": "One platform has multiple download URLs",
     "readme_missing": "README.md is missing from the repository root",
-    "dataset_dir_missing": "The repository lacks the exact DatasetName directory",
+    "dataset_dir_missing": "The repository lacks a data directory matching its repository name",
     "empty_dataset": "The dataset directory is empty",
     "empty_task": "A task directory is empty",
     "mixed_layout": "The dataset directory mixes files and task directories",
@@ -1536,6 +1447,7 @@ FAIL_TEXT = {
     "internal_error": "The check script failed to complete",
 }
 OTHER_MESSAGES = {
+    "gripper_area_unrecorded": ("Gripper local area constants are unavailable or cannot be resolved", "gripper 的局部区域常量缺失或无法解析"),
     "annotation_missing": ("A required annotation image is missing", "缺少必要的标注图"),
     "required_note_missing": ("A required supplementary JSON note is missing", "缺少必要的 supplementary JSON 说明"),
     "tree_partial": ("The dataset directory listing is incomplete", "数据集目录列表不完整"),
@@ -1643,6 +1555,7 @@ def localize_diagnostics(value: Any) -> Any:
         result[key] = item
     return result
 KEYED_FAIL_CODES = {
+    "state_shape", "floating_grid_type",
     "image_not_uint8", "rgb_schema", "invalid_shape", "tactile_members",
     "invalid_tactile_type", "scalar_axis_missing", "terminal_scalar_shape",
     "terminal_expected_type", "tactile_area_shape", "static_area_shape",
@@ -1694,12 +1607,11 @@ def failure_points(report: dict, language: str = "en") -> list[str]:
         text = message_text(code, item.get("message", ""), language)
         evidence = next((e.get("evidence") for e in item.get("examples", [])
                          if isinstance(e.get("evidence"), dict)), {})
-        name = report.get("canonical_name")
         if code == "repo_suffix":
-            suffix = evidence.get("expected_suffix") or (name + "_OXT" if name else "DatasetName_OXT")
-            text = f"repo 名未以 {source_text(suffix, language)} 结尾" if language == "cn" else f"Repository name must end with {source_text(suffix)}"
-        elif code == "dataset_dir_missing" and name:
-            text = f"repo 缺少 {source_text(name, language)}/ 文件夹" if language == "cn" else f"The repository is missing the {source_text(name)}/ directory"
+            text = "repo 名必须以 _OXT 结尾" if language == "cn" else "Repository name must end with _OXT"
+        elif code == "dataset_dir_missing" and evidence.get("expected"):
+            name = evidence["expected"]
+            text = f"repo 缺少同名的 {source_text(name, language)}/ 文件夹" if language == "cn" else f"The repository is missing the matching {source_text(name)}/ directory"
         elif code == "terminal_expected_type" and evidence.get("expected"):
             text = f"触觉 type 应为 {source_text(evidence['expected'], language)}" if language == "cn" else f"Tactile type must be {source_text(evidence['expected'])}"
         elif code == "annotation_missing":
@@ -1740,24 +1652,24 @@ def prepare_machine_report(report: dict) -> dict:
     report["rendered_at"] = timestamp()
     report["failure_points"] = failure_points(report)
     report["limits"] = list(LIMITS_EN)
-    for key in ("remote_repositories", "canonical_resolution", "assets"):
+    for key in ("remote_repositories", "assets"):
         if key in report:
             report[key] = localize_diagnostics(report[key])
-    if report.get("workbook", {}).get("error"):
-        report["workbook"]["error"] = localize_diagnostics({"error": report["workbook"]["error"]})["error"]
+    for key in ("workbook", "canonical_name", "canonical_resolution"):
+        report.pop(key, None)
     report.get("existing_qc", {}).pop("provenance_verified", None)
     return report
 
 
 REPORT_LABELS = {
-    "en": {"no_fail": "No fail findings.", "details": "Machine check details", "dataset": "Dataset", "name": "Registered name",
+    "en": {"no_fail": "No fail findings.", "details": "Machine check details", "dataset": "Dataset", "name": "Repository names",
            "status": "Status", "when": "Checked at", "scope": "Check coverage", "issues": "Findings and evidence",
            "no_issues": "No machine check findings were recorded.", "field": "Field", "source": "Source", "count": "Occurrences",
            "evidence": "Samples and evidence", "remote": "Remote checks", "no_remote": "No remote access records are available.",
            "url": "URL", "endpoint": "Endpoint", "pinned": "Pinned revision", "access": "Access and coverage records",
            "limits": "Check limits", "json": "Complete JSON report", "other": "Chinese Markdown report", "missing": "Not provided",
            "unresolved": "Unresolved", "unreachable": "Unreachable", "unverified": "Unverified"},
-    "cn": {"no_fail": "未发现 fail。", "details": "机器检查详情", "dataset": "数据集", "name": "表格名称",
+    "cn": {"no_fail": "未发现 fail。", "details": "机器检查详情", "dataset": "数据集", "name": "仓库名称",
            "status": "状态", "when": "检查时间", "scope": "检查范围", "issues": "问题与证据",
            "no_issues": "没有机器检查问题记录。", "field": "字段", "source": "来源", "count": "出现次数",
            "evidence": "样本与证据", "remote": "远端检查", "no_remote": "没有远端读取记录。",
@@ -1777,7 +1689,7 @@ def report_markdown(report: dict, language: str = "en") -> str:
     lines = [f"{i}. {html.escape(text)}" for i, text in enumerate(points, 1)] if points else [label["no_fail"]]
     esc = lambda value: html.escape(source_text(value, language))
     lines += ["", "---", "", "## " + label["details"], "",
-              f"{label['dataset']}: {esc(report.get('dataset', label['missing']))}; {label['name']}: {esc(report.get('canonical_name') or label['unresolved'])}; {label['status']}: **{esc(report.get('overall_status', 'unknown'))}**{period}", "",
+              f"{label['dataset']}: {esc(report.get('dataset', label['missing']))}; {label['name']}: {esc(', '.join(report.get('repository_names', [])) or label['missing'])}; {label['status']}: **{esc(report.get('overall_status', 'unknown'))}**{period}", "",
               f"{label['when']}: {esc(report.get('generated_at', label['missing']))}{period}", "",
               "## " + label["scope"], ""]
     for row in report.get("rules", []):
@@ -1859,16 +1771,16 @@ def save_report(report: dict):
     atomic_write(folder / "precheck_final_report.html", report_html(report))
 
 
-def save_summary(root: Path, reports: list[dict], registry: Registry):
+def save_summary(root: Path, reports: list[dict]):
     for report in reports:
         prepare_machine_report(report)
-    rows = [{"dataset": r["dataset"], "canonical_name": r["canonical_name"], "status": r["overall_status"],
+    rows = [{"dataset": r["dataset"], "repository_names": r.get("repository_names", []), "status": r["overall_status"],
              "finding_status_counts": r["finding_status_counts"], "report": r["dataset"] + "/precheck_final_report.html",
              "rules": {v["rule"]: v["status"] for v in r["rules"]},
              "failure_points": r["failure_points"]} for r in reports]
     summary = {"tool": "precheck_final", "version": VERSION, "generated_at": timestamp(), "input_root": str(root),
                "dataset_count": len(rows), "status_counts": dict(Counter(r["status"] for r in rows)),
-               "workbook_sha256": registry.sha256, "review_scope": "machine_only", "datasets": rows}
+               "review_scope": "machine_only", "datasets": rows}
     atomic_write(root / "precheck_final_summary.json", json.dumps(summary, ensure_ascii=True, indent=2) + "\n")
     markdown = ["# OXT machine check summary", "", f"{len(rows)} submissions: {summary['status_counts']}", ""]
     for row in rows:
@@ -1888,8 +1800,6 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("input", type=Path, help="Final metadata folder, or its parent when using --batch")
     parser.add_argument("--batch", action="store_true", help="Check all non-hidden submission folders under the parent")
-    parser.add_argument("--workbook", type=Path, help="Contributor List; defaults to a workbook found in ancestor directories")
-    parser.add_argument("--dataset-name", help="Explicit registered name for one submission; must exist in the workbook")
     parser.add_argument("--offline", action="store_true", help="Skip network access and mark remote checks unknown")
     parser.add_argument("--workers", type=int, default=4, help="Concurrent submission workers; default: 4")
     parser.add_argument("--timeout", type=float, default=8.0, help="Timeout per HTTP request, in seconds")
@@ -1902,14 +1812,11 @@ def main(argv: list[str] | None = None) -> int:
     root = args.input.resolve()
     if not root.is_dir():
         parser.error("Input must be a directory")
-    if args.batch and args.dataset_name:
-        parser.error("--dataset-name only applies to a single submission")
     if not 1 <= args.workers <= 16 or args.timeout <= 0 or args.repo_budget <= 0 or args.max_pages < 1 or args.max_tasks < 1 or args.max_entries < 1 or args.archive_samples < 0:
         parser.error("Invalid workers, timeout, or limit arguments")
-    options = Options(workbook=args.workbook or locate_workbook(root), dataset_name=args.dataset_name, offline=args.offline,
+    options = Options(offline=args.offline,
                       timeout=args.timeout, repo_budget=args.repo_budget, max_pages=args.max_pages, max_tasks=args.max_tasks,
                       max_entries=args.max_entries, archive_samples=args.archive_samples)
-    registry = Registry(options.workbook)
     client = RemoteClient(options)
     folders = sorted(p for p in root.iterdir() if p.is_dir() and not p.name.startswith(".")) if args.batch else [root]
     if not folders:
@@ -1917,11 +1824,11 @@ def main(argv: list[str] | None = None) -> int:
 
     def process(folder):
         try:
-            report = review_dataset(folder, registry, options, client)
+            report = review_dataset(folder, options, client)
         except Exception as error:
             # Keep the batch running, but never turn internal errors into pass.
             report = {"tool": "precheck_final", "version": VERSION, "generated_at": timestamp(), "input_dir": str(folder),
-                      "dataset": folder.name, "canonical_name": None, "overall_status": "fail", "submission_ready": False,
+                      "dataset": folder.name, "repository_names": [], "overall_status": "fail", "submission_ready": False,
                       "rules": [{"rule": key, "title": title, "status": "unknown", "finding_groups": 1} for key, title in RULES.items()],
                       "findings": [{"rule": "11", "status": "fail", "code": "internal_error", "message": "The check did not complete; see the error evidence",
                                     "key": "", "source": "", "occurrences": 1, "examples": [{"evidence": f"{type(error).__name__}: {error}"}]}],
@@ -1939,7 +1846,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"[{len(reports)}/{len(folders)}] {report['dataset']}: {report['overall_status']} ({counts})", flush=True)
     reports.sort(key=lambda r: r["dataset"])
     if args.batch:
-        summary = save_summary(root, reports, registry)
+        summary = save_summary(root, reports)
         print(json.dumps({"summary": str(root / "precheck_final_summary.html"), "dataset_count": len(reports), "status_counts": summary["status_counts"]}, ensure_ascii=True))
     else:
         print(str(root / "precheck_final_report.html"))
