@@ -275,7 +275,9 @@ def test_batch_writes_reports_for_bad_input_and_does_not_modify_sources(tmp_path
         assert all(f["status"] != "manual" for f in report["findings"])
         lines = (target / "precheck_final_report.md").read_text(encoding="utf-8").splitlines()
         overview = [f"{i}. {final.html.escape(text)}" for i, text in enumerate(report["failure_points"], 1)]
-        assert lines[:len(overview)] == overview
+        assert lines[0].startswith("# ") and lines[0].endswith(" Final Data Review Results")
+        assert lines[2] == "## Required Changes"
+        assert lines[4:4 + len(overview)] == overview
         assert "## Machine check details" in lines
         assert "## Check coverage" in lines and "## Findings and evidence" in lines
         assert (target / "precheck_final_report_cn.md").is_file()
@@ -331,7 +333,8 @@ def test_machine_report_groups_failures_and_drops_legacy_semantic_checks():
     assert warning["examples"][0]["evidence"]["reason"] == ["基线记录不一致"]
     assert "provenance_verified" not in report["existing_qc"]
     markdown = final.report_markdown(report)
-    assert markdown.splitlines()[:2] == ["1. " + report["failure_points"][0], "2. " + report["failure_points"][1]]
+    assert markdown.splitlines()[:4] == ["# Demo Final Data Review Results", "", "## Required Changes", ""]
+    assert markdown.splitlines()[4:6] == ["1. " + report["failure_points"][0], "2. " + report["failure_points"][1]]
     assert "#### warning · vlm_reported_warning" in markdown
     assert "基线记录不一致" not in markdown and r"\u57fa" in markdown
     chinese = final.report_markdown(report, "cn")
@@ -350,7 +353,7 @@ def test_no_fail_does_not_hide_unfinished_machine_checks():
     report = {"rules": c.summary(), "findings": c.findings}
     final.prepare_machine_report(report)
     markdown = final.report_markdown(report)
-    assert markdown.startswith("No fail findings.\n\n---")
+    assert markdown.split("## Required Changes\n\n", 1)[1].startswith("No fail findings.\n\n---")
     assert "#### unknown · offline" in markdown
     assert "Remote checks were skipped in offline mode" in markdown
     assert report["overall_status"] == "needs_review"
@@ -368,7 +371,7 @@ def test_english_outputs_and_chinese_copy_preserve_original_evidence(tmp_path):
     for name in ("precheck_final_report.md", "precheck_final_report.html", "precheck_final_report.json"):
         assert not final.CJK_RE.search((tmp_path / name).read_text(encoding="utf-8"))
     chinese = (tmp_path / "precheck_final_report_cn.md").read_text(encoding="utf-8")
-    assert chinese.startswith("1. metadata 含中文。") and "中文说明" in chinese
+    assert chinese.startswith("# Demo数据终审结果\n\n## 需要修改的地方\n\n1. metadata 含中文。") and "中文说明" in chinese
     stored = json.loads((tmp_path / "precheck_final_report.json").read_text(encoding="utf-8"))
     assert stored["findings"][0]["examples"][0]["evidence"] == evidence
     assert stored["overall_status"] == "fail" and stored["language"] == "en"

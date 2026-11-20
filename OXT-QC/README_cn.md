@@ -43,7 +43,7 @@ python precheck_final.py ../../metadata --batch --workers 4
 
 每个输入目录生成英文 `precheck_final_report.json`、`precheck_final_report.md`、`precheck_final_report.html`，并额外生成中文 `precheck_final_report_cn.md`；批量父目录的 `precheck_final_summary.json/.md/.html` 也使用英文。命令行帮助、错误提示和检查消息均为英文。
 
-中英文 Markdown 共用相同检查结果，开头直接以 `1. ...`、`2. ...` 列出 fail 问题，每个问题一句话，同类文件/字段合并；没有 fail 时分别写“No fail findings.”或“未发现 fail”。下方保留完整机器检查详情，包括 17 项检查范围、问题字段、来源、出现次数、样本证据及远端访问/覆盖记录。HTML 顶部显示英文编号列表，下方机器详情默认展开，并提供中英文 Markdown 链接。原始中文证据在英文文件中以 Unicode 转义保存，读取 JSON 后仍可还原原值，中文 Markdown 直接显示原文。
+中英文 Markdown 共用相同检查结果。中文报告以 `# <dataset_name>数据终审结果` 开头，在 `## 需要修改的地方` 下以 `1. ...`、`2. ...` 列出 fail 问题；英文报告对应使用 `# <dataset_name> Final Data Review Results` 和 `## Required Changes`。标题采用 `metadata.name`，缺失时回退到提交目录中的数据集名。每个问题一句话，同类文件/字段合并；没有 fail 时分别写“No fail findings.”或“未发现 fail”。下方保留完整机器检查详情，包括 17 项检查范围、问题字段、来源、出现次数、样本证据及远端访问/覆盖记录。HTML 顶部显示英文编号列表，下方机器详情默认展开，并提供中英文 Markdown 链接。原始中文证据在英文文件中以 Unicode 转义保存，读取 JSON 后仍可还原原值，中文 Markdown 直接显示原文。
 
 最终检查仅保留机器能核验的字段、dtype/shape、索引、附件可读性、QC 执行/评分和仓库格式。图像内容、动作语义、真实同步、物理单位、标定和坐标方向等按正确处理，不输出人工核验项；跳过 JSON 生成来源鉴定，不再按 Excel 终审备注增加字段类型或标签要求。JSON 文件的存在、可解析性、结构和已有 QC 执行结果仍会检查。
 

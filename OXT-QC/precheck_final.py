@@ -1662,14 +1662,16 @@ def prepare_machine_report(report: dict) -> dict:
 
 
 REPORT_LABELS = {
-    "en": {"no_fail": "No fail findings.", "details": "Machine check details", "dataset": "Dataset", "name": "Repository names",
+    "en": {"title": "{dataset_name} Final Data Review Results", "changes": "Required Changes",
+           "no_fail": "No fail findings.", "details": "Machine check details", "dataset": "Dataset", "name": "Repository names",
            "status": "Status", "when": "Checked at", "scope": "Check coverage", "issues": "Findings and evidence",
            "no_issues": "No machine check findings were recorded.", "field": "Field", "source": "Source", "count": "Occurrences",
            "evidence": "Samples and evidence", "remote": "Remote checks", "no_remote": "No remote access records are available.",
            "url": "URL", "endpoint": "Endpoint", "pinned": "Pinned revision", "access": "Access and coverage records",
            "limits": "Check limits", "json": "Complete JSON report", "other": "Chinese Markdown report", "missing": "Not provided",
            "unresolved": "Unresolved", "unreachable": "Unreachable", "unverified": "Unverified"},
-    "cn": {"no_fail": "未发现 fail。", "details": "机器检查详情", "dataset": "数据集", "name": "仓库名称",
+    "cn": {"title": "{dataset_name}数据终审结果", "changes": "需要修改的地方",
+           "no_fail": "未发现 fail。", "details": "机器检查详情", "dataset": "数据集", "name": "仓库名称",
            "status": "状态", "when": "检查时间", "scope": "检查范围", "issues": "问题与证据",
            "no_issues": "没有机器检查问题记录。", "field": "字段", "source": "来源", "count": "出现次数",
            "evidence": "样本与证据", "remote": "远端检查", "no_remote": "没有远端读取记录。",
@@ -1686,8 +1688,12 @@ def report_markdown(report: dict, language: str = "en") -> str:
     period = "。" if language == "cn" else "."
     titles = RULES_CN if language == "cn" else RULES
     points = failure_points(report, language)
-    lines = [f"{i}. {html.escape(text)}" for i, text in enumerate(points, 1)] if points else [label["no_fail"]]
     esc = lambda value: html.escape(source_text(value, language))
+    dataset_name = report.get("metadata_name")
+    if not isinstance(dataset_name, str) or not dataset_name.strip():
+        dataset_name = re.sub(r"^OXT_Submission_", "", str(report.get("dataset") or label["missing"]), flags=re.I)
+    lines = ["# " + label["title"].format(dataset_name=esc(dataset_name)), "", "## " + label["changes"], ""]
+    lines += [f"{i}. {html.escape(text)}" for i, text in enumerate(points, 1)] if points else [label["no_fail"]]
     lines += ["", "---", "", "## " + label["details"], "",
               f"{label['dataset']}: {esc(report.get('dataset', label['missing']))}; {label['name']}: {esc(', '.join(report.get('repository_names', [])) or label['missing'])}; {label['status']}: **{esc(report.get('overall_status', 'unknown'))}**{period}", "",
               f"{label['when']}: {esc(report.get('generated_at', label['missing']))}{period}", "",
