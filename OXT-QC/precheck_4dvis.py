@@ -15,6 +15,10 @@ import viser
 import viser.extras
 import viser.transforms as tf
 
+from imagecodecs.numcodecs import register_codecs
+
+register_codecs(force=False, verbose=False)
+
 RIGHT_WRIST_COORD_ADJUST_MATRIX = None
 LEFT_WRIST_COORD_ADJUST_MATRIX = None
 EGO_CAMERA_ADJUST_MATRIX = None

@@ -38,6 +38,10 @@ try:
 except ImportError:  # pragma: no cover
     tqdm = None
 
+from imagecodecs.numcodecs import register_codecs
+
+register_codecs(force=False, verbose=False)
+
 
 TACTILE_TYPE_ALIAS = {
     "state": "state",

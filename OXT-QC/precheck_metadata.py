@@ -85,6 +85,10 @@ except ImportError as exc:  # pragma: no cover - dependency guard
         f"(import error: {exc})"
     )
 
+from imagecodecs.numcodecs import register_codecs
+
+register_codecs(force=False, verbose=False)
+
 __version__ = "1.0.0"
 
 # --------------------------------------------------------------------------- #
