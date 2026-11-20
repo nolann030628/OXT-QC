@@ -7,6 +7,7 @@
 - `precheck_metadata.py`：metadata / schema precheck，导出 `precheck_report.json`、`precheck_report_result.json`、`metadata.json` 和 `dict.json`
 - `precheck_vlm.py`：基于 VLM 的 RGB+tactile review，导出 `vlm_review.json`、`vlm_review_result.json` 和 montage 图片
 - `precheck_4dvis.py`：4D visualization check，用于检查轨迹、坐标系和可视化表现
+- `precheck_final.py`：输入最终 metadata 提交文件夹，对 14 主项及 HF/MS 三个子项终审，输出本地报告
 - `oxt_check_output/`：默认输出目录，保存 metadata、report、VLM review 和可视化产物
 - `configs/`：配置文件
 - `common/`：预检和可视化脚本依赖的通用工具函数
@@ -20,6 +21,31 @@
 1. 先运行 `precheck_metadata.py`，检查 zarr 结构、时间戳、RGB 流、tactile 四件套等硬约束。
 2. 再运行 `precheck_4dvis.py`，对轨迹、坐标系、点云和时序表现做可视化检查。
 3. 最后运行 `precheck_vlm.py`，对 RGB 与 tactile 的同步性、接触一致性、信号健康度和指令一致性做语义复核。
+4. 提交包整理后运行 `precheck_final.py`。它读取已导出的 dict/QC 结果、Contributor List 和附件，不启动新的 VLM 调用或改写数据。
+
+## 最终提交检查
+
+从本目录检查单个最终 metadata 包，Contributor List 默认从祖先目录查找：
+
+```powershell
+python precheck_final.py ../../metadata/OXT_Submission_DreamTac
+```
+
+检查全部提交（仍向每个包内写报告）：
+
+```powershell
+python precheck_final.py ../../metadata --batch --workers 4
+```
+
+也可显式指定 `--workbook "../../Open-X-Tactile Contributor List.xlsx"`。`--dataset-name` 可为单个包指定表格中存在的正式名；别名识别只定位表格行，名称合规仍严格比较。
+
+每个输入目录生成英文 `precheck_final_report.json`、`precheck_final_report.md`、`precheck_final_report.html`，并额外生成中文 `precheck_final_report_cn.md`；批量父目录的 `precheck_final_summary.json/.md/.html` 也使用英文。命令行帮助、错误提示和检查消息均为英文。
+
+中英文 Markdown 共用相同检查结果，开头直接以 `1. ...`、`2. ...` 列出 fail 问题，每个问题一句话，同类文件/字段合并；没有 fail 时分别写“No fail findings.”或“未发现 fail”。下方保留完整机器检查详情，包括 17 项检查范围、问题字段、来源、出现次数、样本证据及远端访问/覆盖记录。HTML 顶部显示英文编号列表，下方机器详情默认展开，并提供中英文 Markdown 链接。原始中文证据在英文文件中以 Unicode 转义保存，读取 JSON 后仍可还原原值，中文 Markdown 直接显示原文。
+
+最终检查仅保留机器能核验的字段、dtype/shape、索引、附件可读性、QC 执行/评分和仓库格式。图像内容、动作语义、真实同步、物理单位、标定和坐标方向等按正确处理，不输出人工核验项；只凭 rank 无法确定的 state/matrix 物理语义也不单独报问题，终审点名的字段类型仍按明确要求检查。
+
+网络检查默认开启：HF 根目录、子目录或文件读取失败时尝试 hf-mirror 的相同 revision/路径；MS 使用 dataset tree API。只读取必要目录层级、README 和有界压缩包头，不全量下载大包。`--timeout`、`--repo-budget`、`--max-pages`、`--max-tasks` 控制预算；达到上限或网络/权限问题标 unknown，不判为目录不存在。
 
 ## 环境安装
 
