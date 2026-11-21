@@ -851,9 +851,9 @@ def check_arrays(folder: Path, meta: dict, dict_obj: Any, c: Collector) -> dict:
                 # Separate N=1 streams can still represent the two pads of one gripper.
                 index_key, actual, local, offset = pad_indices[key]
                 count = min(2, max(pad_counts[prefix], len(pad_areas[prefix])))
-                target = list(range(count))
+                target = [0, 15] if count == 1 else list(range(count))
                 if target is not None and not set(local).issubset(target):
-                    c.add("03", "fail", "gripper_area", "Gripper local area must be 0 or [0,1]", key=index_key, example=example,
+                    c.add("03", "fail", "gripper_area", "Gripper local area must be 0 or 15 for one value, or [0,1] for two pads", key=index_key, example=example,
                           evidence={"actual": actual, "expected": [v + offset for v in target], "local_actual": local, "local_expected": target}, signature=actual)
             for member in ("sensor", "type"):
                 if member in members and members[member][1]["shape"] != [T]:
@@ -1291,7 +1291,7 @@ FAIL_TEXT_CN = {
     "idx_range": "索引超出允许范围",
     "idx_duplicate": "索引重复",
     "constant_changed": "固定索引、名称或类型随时间改变",
-    "gripper_area": "夹爪 area 不是 0 或 [0,1]",
+    "gripper_area": "夹爪 area 单值必须为 0 或 15，双垫必须为 [0,1]",
     "standard_pose_shape": "标准 pose 不是六维",
     "viser_missing_or_invalid": "缺少有效的 Viser 4D 录像",
     "institution_missing": "缺少 institution 图",
@@ -1384,7 +1384,7 @@ FAIL_TEXT = {
     "idx_range": "Indices are outside the permitted range",
     "idx_duplicate": "Indices contain duplicates",
     "constant_changed": "Fixed indices, names, or types change over time",
-    "gripper_area": "Gripper area must be 0 or [0,1]",
+    "gripper_area": "Gripper area must be 0 or 15 for one value, or [0,1] for two pads",
     "standard_pose_shape": "Standard pose must have six dimensions",
     "viser_missing_or_invalid": "A valid Viser 4D recording is missing",
     "institution_missing": "An institution image is missing",

@@ -460,14 +460,15 @@ def test_gripper_area_gate_uses_metadata_for_state_data(embodiment, should_fail,
     t = table()
     t["right_tactile_data_gripper"] = info([3, 1, 6])
     t["right_tactile_type_gripper"]["constant_value"] = "state"
-    t["right_tactile_area_gripper"]["constant_value"] = [15]
+    t["right_tactile_area_gripper"]["constant_value"] = [2]
     c = final.Collector()
     final.check_arrays(tmp_path, meta, {"one.zarr": t}, c)
     assert ("gripper_area" in codes(c)) == should_fail
-    t["right_tactile_area_gripper"]["constant_value"] = [0]
-    c = final.Collector()
-    final.check_arrays(tmp_path, meta, {"one.zarr": t}, c)
-    assert "gripper_area" not in codes(c)
+    for area in (0, 15):
+        t["right_tactile_area_gripper"]["constant_value"] = [area]
+        c = final.Collector()
+        final.check_arrays(tmp_path, meta, {"one.zarr": t}, c)
+        assert "gripper_area" not in codes(c)
 
 
 def test_gripper_static_left_indices_are_checked_in_local_coordinates(tmp_path):
@@ -484,7 +485,11 @@ def test_gripper_static_left_indices_are_checked_in_local_coordinates(tmp_path):
     c = final.Collector()
     final.check_arrays(tmp_path, metadata(), {"one.zarr": t}, c)
     finding = next(f for f in c.findings if f["code"] == "gripper_area")
-    assert finding["examples"][0]["evidence"]["expected"] == [24]
+    assert finding["examples"][0]["evidence"]["expected"] == [24, 39]
+    t[key]["constant_value"] = [39]
+    c = final.Collector()
+    final.check_arrays(tmp_path, metadata(), {"one.zarr": t}, c)
+    assert "gripper_area" not in codes(c)
 
 
 @pytest.mark.parametrize("repo,directory,suffix_fail,directory_fail", [
